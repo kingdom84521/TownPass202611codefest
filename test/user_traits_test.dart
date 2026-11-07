@@ -7,6 +7,7 @@ import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.da
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_assistant_controller.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/service/user_traits/trait_aggregator.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
 import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
@@ -171,6 +172,62 @@ void main() {
       recorder = UserTraitRecorder(repository: () async => repository, clock: () => _now);
     });
     tearDown(() => repository.close());
+
+    test('訂閱＝明確選擇；取消訂閱＝扣分但不歸零，且主題列入不再推薦；重新訂閱就作廢', () async {
+      // 先有一些「開車」的證據（問過停車費三次）
+      for (final String q in ['繳停車費', '停車費多少', '路邊停車費']) {
+        await recorder.recordKeywordMatch(q, entry('停車費'));
+      }
+      Future<double> carScooter() async =>
+          (await recorder.traits()).where((t) => t.value == 'car_scooter').firstOrNull?.confidence ?? 0;
+      final double before = await carScooter();
+
+      await recorder.recordChoice(RecommendationSurface.subscriptionTopic, '停車費通知', chosen: true);
+      final double subscribed = await carScooter();
+      expect(subscribed, greaterThan(before), reason: '訂閱是最強的正向證據');
+      expect(await repository.rejectedItems(), isEmpty);
+
+      await recorder.recordChoice(RecommendationSurface.subscriptionTopic, '停車費通知', chosen: false);
+      final double unsubscribed = await carScooter();
+      expect(unsubscribed, lessThan(before), reason: '取消訂閱扣分');
+      expect(unsubscribed, greaterThan(before * 0.5), reason: '但不歸零：取消停車費通知不代表不開車');
+      expect(await repository.rejectedItems(), {('subscriptionTopic', '停車費通知')});
+
+      await recorder.recordChoice(RecommendationSurface.subscriptionTopic, '停車費通知', chosen: true);
+      expect(await carScooter(), closeTo(subscribed, 1e-9), reason: '重新訂閱：拒絕作廢、回到訂閱時的狀態');
+      expect(await repository.rejectedItems(), isEmpty);
+    });
+
+    test('從我的服務移除：該服務不再推薦；沒有特徵的服務也會被記住', () async {
+      await recorder.recordChoice(RecommendationSurface.service, '圖書借閱', chosen: false);
+      await recorder.recordChoice(RecommendationSurface.service, '警政服務', chosen: false); // 敏感：不記特徵
+      expect(await repository.rejectedItems(), {('service', '圖書借閱'), ('service', '警政服務')});
+      final List<TraitObservation> stored = await repository.observations();
+      expect(stored.map((o) => '${o.source.name}:${o.value}'), ['optOut:reading']);
+    });
+
+    test('項目在互斥維度掛了好幾個值（交通措施：開車或大眾運輸）時，該維度不記', () {
+      final List<String> values = [
+        for (final (_, String value) in UserTraitRecorder.traitsOfItem(RecommendationSurface.subscriptionTopic, '交通措施'))
+          value,
+      ];
+      expect(values, containsAll(['roads_traffic', 'commuter']));
+      expect(values, isNot(contains(anyOf('car_scooter', 'public_transit'))));
+    });
+
+    test('點開內容：同一天重複點只算一次；刻意不推薦的項目不記', () async {
+      await recorder.recordBrowse(RecommendationSurface.homeActivity, '動物園夜間開放 限定週六晚上');
+      await recorder.recordBrowse(RecommendationSurface.homeActivity, '動物園夜間開放 限定週六晚上');
+      await recorder.recordBrowse(RecommendationSurface.bill, '聯合醫院醫療費');
+      await recorder.recordBrowse(RecommendationSurface.service, '圖書借閱');
+
+      final List<TraitObservation> stored = await repository.observations();
+      expect(stored.where((o) => o.source == TraitSource.browse).map((o) => o.evidenceKey).toSet(), hasLength(1));
+      expect(stored.map((o) => o.value), isNot(contains(anyOf('wellness', 'bills_payment'))));
+      expect(stored.where((o) => o.source == TraitSource.click).single.value, 'reading', reason: '點服務等同點小幫手結果');
+      final List<UserTrait> traits = await recorder.traits();
+      expect(traits.firstWhere((t) => t.value == 'family_outings').evidenceCount, 1);
+    });
 
     test('evidence key ignores case and punctuation and never stores the text', () {
       expect(UserTraitRecorder.evidenceKey('我想借書！'), UserTraitRecorder.evidenceKey('我想借書'));

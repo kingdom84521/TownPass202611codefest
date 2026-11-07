@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:town_pass/bean/activity.dart';
@@ -54,7 +56,10 @@ class _Banner extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Get.toNamed(TPRoute.activityDetail, arguments: activity),
+      onTap: () {
+        if (activity != null) UserTraitRecorder().recordBrowse(RecommendationSurface.homeActivity, activity!.title);
+        Get.toNamed(TPRoute.activityDetail, arguments: activity);
+      },
       child: SizedBox(
         width: 134,
         child: switch (activity == null) {

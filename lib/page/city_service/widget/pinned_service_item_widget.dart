@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/city_service/model/my_service_model.dart';
 import 'package:town_pass/util/tp_colors.dart';
@@ -23,10 +25,13 @@ class PinnedServiceItemWidget extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap?.call ??
           switch (service.destinationUrl.isNotEmpty) {
-            true => () async => await TPRoute.openUri(
+            true => () async {
+                UserTraitRecorder().recordBrowse(RecommendationSurface.service, service.title);
+                await TPRoute.openUri(
                   uri: service.destinationUrl,
                   forceTitle: service.forceWebViewTitle,
-                ),
+                );
+              },
             false => null,
           },
       child: Stack(

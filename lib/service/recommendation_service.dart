@@ -32,6 +32,10 @@ class RecommendationService extends GetxService {
   /// 各推薦項目的語意加分（key 見 [RecommendationEmbeddings.targetKey]），由 [serviceInterests] 算出。
   final RxMap<String, double> semanticBonuses = <String, double>{}.obs;
 
+  /// 使用者明確拒絕的項目（取消訂閱、從我的服務移除），key 見 [RecommendationEmbeddings.targetKey]。
+  /// 這些項目不再推薦：分數一律為 0。
+  final RxSet<String> rejected = <String>{}.obs;
+
   bool get hasTraits => traits.isNotEmpty;
 
   Future<RecommendationService> init() async {
@@ -43,7 +47,9 @@ class RecommendationService extends GetxService {
   Future<void> reload() async {
     try {
       final DateTime now = DateTime.now();
-      final List<TraitObservation> observations = await (await _repository()).observations();
+      final UserTraitRepository repository = await _repository();
+      final List<TraitObservation> observations = await repository.observations();
+      rejected.assignAll({for (final (String surface, String item) in await repository.rejectedItems()) '$surface|$item'});
       _setServiceInterests(serviceInterestsOf(observations, now: now));
       traits.assignAll(TraitAggregator.aggregate(observations, now: now)
           .where((trait) => trait.confidence >= TraitAggregator.confidentThreshold));
@@ -53,9 +59,22 @@ class RecommendationService extends GetxService {
       // 讀不到就當作沒有特徵：所有畫面維持原樣
       debugPrint('[推薦] 讀取特徵失敗：$error');
       traits.clear();
+      rejected.clear();
       _setServiceInterests(const {});
     }
   }
+
+  /// 測試或預覽用：直接指定被拒絕的項目。
+  @visibleForTesting
+  void setRejected(Iterable<(RecommendationSurface, String)> items) =>
+      rejected.assignAll({for (final (RecommendationSurface surface, String item) in items) '${surface.name}|$item'});
+
+  bool isRejected(RecommendationTarget target) =>
+      rejected.contains(RecommendationEmbeddings.targetKey(target.surface, target.match));
+
+  /// 項目分數：特徵＋語意；被拒絕的項目為 0（維持原本位置，不會被推上來）。
+  double scoreOf(RecommendationTarget target) =>
+      isRejected(target) ? 0 : RecommendationTargets.score(target, traits, bonus: _bonus);
 
   /// 測試或預覽用：直接指定特徵。
   @visibleForTesting
@@ -78,13 +97,12 @@ class RecommendationService extends GetxService {
 
   /// 依特徵與語意相似度重新排序 [items]（分數相同維持原順序）。
   List<T> rank<T>(RecommendationSurface surface, List<T> items, {required String Function(T item) titleOf}) =>
-      RecommendationTargets.rank(surface, items, traits, titleOf: titleOf, bonus: _bonus);
+      RecommendationTargets.rank(surface, items, traits, titleOf: titleOf, scoreOf: scoreOf);
 
   /// 某個位置裡和使用者相關（分數 > 0）的項目，依分數由高到低。
   List<RecommendationTarget> matching(RecommendationSurface surface) {
     final List<(RecommendationTarget, double)> scored = [
-      for (final RecommendationTarget target in RecommendationTargets.of(surface))
-        (target, RecommendationTargets.score(target, traits, bonus: _bonus)),
+      for (final RecommendationTarget target in RecommendationTargets.of(surface)) (target, scoreOf(target)),
     ]..removeWhere((pair) => pair.$2 <= 0);
     // 分數相同維持對照表原本的順序
     final List<RecommendationTarget> order = RecommendationTargets.of(surface);

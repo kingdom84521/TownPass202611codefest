@@ -8,6 +8,8 @@ import 'package:town_pass/util/tp_line.dart';
 import 'package:town_pass/util/tp_route.dart';
 import 'package:town_pass/util/tp_text.dart';
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:get/get.dart';
 
 class ActivityListView extends StatelessWidget {
@@ -40,6 +42,7 @@ class _ActivityItemWidget extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () async {
+        UserTraitRecorder().recordBrowse(RecommendationSurface.homeActivity, item.title);
         await Get.toNamed(
           TPRoute.activityDetail,
           arguments: item,

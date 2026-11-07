@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 import 'package:town_pass/service/recommendation_service.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
 import 'package:town_pass/service/user_traits/user_trait_repository.dart';
 
@@ -109,6 +110,87 @@ class UserTraitRecorder {
   Future<void> recordOpened(String query, ServiceSearchEntry entry) =>
       _save(_fromService(entry.title, TraitSource.click, clickConfidence, '${evidenceKey(query)}:click:${entry.title}'));
 
+  /// 點開內容（輪播、活動、繳費、訂閱訊息）的可信度；乘上 [TraitSource.browse] 後約等於一次關鍵字命中。
+  static const double browseConfidence = 0.5;
+
+  /// 某個推薦項目透露的特徵：服務看服務對照表，其他看推薦對照表（[RecommendationTargets]）。
+  /// 刻意不推薦的項目（醫療、社福身分等）沒有特徵，也就不會產生觀察。
+  ///
+  /// 互斥維度（例如交通方式）若同一個項目掛了好幾個值（「交通措施」同時掛開車與大眾運輸，代表「其中之一」），
+  /// 選了它也看不出是哪一個，這個維度就不記，以免互相矛盾而扣分。
+  static List<(TraitDimension, String)> traitsOfItem(RecommendationSurface surface, String item) {
+    final List<(TraitDimension, String)> tags = surface == RecommendationSurface.service
+        ? traitsOfService(item)
+        : [
+            for (final RecommendationTarget target in RecommendationTargets.of(surface))
+              if (target.matches(item)) ...target.tags,
+          ];
+    return [
+      for (final (TraitDimension dimension, String value) in tags)
+        if (!dimension.exclusive || tags.where((tag) => tag.$1 == dimension).length == 1) (dimension, value),
+    ];
+  }
+
+  /// 使用者明確選擇或拒絕某個項目（A、B 類）：
+  ///
+  /// - 選擇（訂閱主題、加進我的服務）：記一筆明確選擇（最強的正向證據），並撤銷之前的拒絕。
+  /// - 拒絕（取消訂閱、從我的服務移除）：撤銷之前的選擇，記一筆反向證據（特徵扣分但不歸零），
+  ///   並把這個項目列入「不再推薦」。
+  ///
+  /// 同一個項目只保留最新的一次決定。
+  Future<void> recordChoice(RecommendationSurface surface, String item, {required bool chosen}) async {
+    final String chooseKey = 'choice:${surface.name}:$item';
+    final String rejectKey = 'optout:${surface.name}:$item';
+    try {
+      final UserTraitRepository repository = await _repository();
+      // 只保留最新的決定：先清掉這個項目之前的選擇與拒絕
+      await repository.removeEvidence(chooseKey);
+      await repository.removeEvidence(rejectKey);
+      if (chosen) {
+        await repository.unrejectItem(surface.name, item);
+      } else {
+        await repository.rejectItem(surface.name, item, at: _clock());
+      }
+    } catch (error) {
+      debugPrint('[使用者特徵] 更新選擇失敗：$error');
+    }
+    await _save(
+      [
+        for (final (TraitDimension dimension, String value) in traitsOfItem(surface, item))
+          TraitObservation(
+            dimension: dimension,
+            value: value,
+            confidence: clickConfidence,
+            source: chosen ? TraitSource.explicit : TraitSource.optOut,
+            evidenceKey: chosen ? chooseKey : rejectKey,
+            observedAt: _clock(),
+            detail: item,
+          ),
+      ],
+      notifyEvenIfEmpty: true,
+    );
+  }
+
+  /// 使用者點開某個項目（C 類）。服務等同點開小幫手推薦的服務；其他內容較弱。
+  /// 同一天重複點同一項只算一次。
+  Future<void> recordBrowse(RecommendationSurface surface, String item) {
+    final DateTime now = _clock();
+    final String day = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    final bool isService = surface == RecommendationSurface.service;
+    return _save([
+      for (final (TraitDimension dimension, String value) in traitsOfItem(surface, item))
+        TraitObservation(
+          dimension: dimension,
+          value: value,
+          confidence: isService ? clickConfidence : browseConfidence,
+          source: isService ? TraitSource.click : TraitSource.browse,
+          evidenceKey: 'browse:${surface.name}:$item:$day',
+          observedAt: now,
+          detail: item,
+        ),
+    ]);
+  }
+
   static const String _languageSettingKey = 'setting:translation_language';
 
   /// 使用者自己在設定裡選了翻譯語言（取代原本「我是誰」選外籍人士的訊號）。
@@ -149,8 +231,12 @@ class UserTraitRecorder {
           ),
       ];
 
-  Future<void> _save(List<TraitObservation> observations) async {
-    if (observations.isEmpty) return;
+  Future<void> _save(List<TraitObservation> observations, {bool notifyEvenIfEmpty = false}) async {
+    if (observations.isEmpty) {
+      // 例如拒絕一個沒有特徵的項目：雖然不記觀察，「不再推薦」清單仍然變了
+      if (notifyEvenIfEmpty) notifyTraitsChanged();
+      return;
+    }
     try {
       await (await _repository()).add(observations);
       notifyTraitsChanged();

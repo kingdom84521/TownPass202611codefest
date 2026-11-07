@@ -118,7 +118,10 @@ Map<String, double> serviceInterestsOf(Iterable<TraitObservation> observations, 
   for (final TraitObservation observation in observations) {
     final String? title = observation.detail;
     // 只看服務：LLM 推論沒有對應服務，設定類（例如翻譯語言）也不是服務
-    if (title == null || observation.source == TraitSource.llm || observation.evidenceKey.startsWith('setting:')) {
+    if (title == null ||
+        observation.source == TraitSource.llm ||
+        observation.source.negative ||
+        observation.evidenceKey.startsWith('setting:')) {
       continue;
     }
     final double ageDays = math.max(0, now.difference(observation.observedAt).inMinutes / (60 * 24));

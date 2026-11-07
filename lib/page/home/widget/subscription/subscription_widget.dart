@@ -187,7 +187,7 @@ class _RecommendedTopics extends StatelessWidget {
                 backgroundColor: TPColors.white,
                 side: const BorderSide(color: TPColors.primary500),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                onPressed: () => subscriptions.addSubscription(title: topic),
+                onPressed: () => subscriptions.addSubscription(title: topic, byUser: true),
               ),
           ],
         ),

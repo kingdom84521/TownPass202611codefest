@@ -87,6 +87,24 @@ void main() {
     });
   });
 
+  test('使用者拒絕的項目不再推薦：取消訂閱的主題、移除的服務', () {
+    final RecommendationService service = RecommendationService()
+      ..setTraits([
+        _trait(TraitDimension.interest, 'places_travel', 0.9),
+        _trait(TraitDimension.interest, 'reading', 0.9),
+      ]);
+    expect(service.subscriptionTopics(subscribed: {}), ['臺北旅遊網最新消息', '圖書到期通知']);
+    expect(service.services(), contains(MyServiceItemId.library));
+
+    service.setRejected([
+      (RecommendationSurface.subscriptionTopic, '臺北旅遊網最新消息'),
+      (RecommendationSurface.service, '圖書借閱'),
+    ]);
+    expect(service.subscriptionTopics(subscribed: {}), ['圖書到期通知']);
+    expect(service.services(), isNot(contains(MyServiceItemId.library)));
+    expect(service.suggestedServices(pinned: const []), isNot(contains(MyServiceItemId.library)));
+  });
+
   group('語意相似度（真的向量檔）', () {
     final RecommendationEmbeddings embeddings = RecommendationEmbeddings.fromJson(
       jsonDecode(File(RecommendationEmbeddings.assetPath).readAsStringSync()) as Map<String, dynamic>,

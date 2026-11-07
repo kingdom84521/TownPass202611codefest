@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/city_service/model/my_service_model.dart';
@@ -26,7 +28,7 @@ class SimplePinnedServiceWidget extends GetView<PinnedServiceWidgetController> {
               icon: itemId.item.icon,
               title: itemId.item.title,
               description: itemId.item.description,
-              onTap: () => openServiceOrComingSoon(
+              onTap: () => _openAndRecord(
                 uri: itemId.item.destinationUrl,
                 title: itemId.item.title,
                 forceTitle: itemId.item.forceWebViewTitle,
@@ -73,7 +75,7 @@ class SimpleOfficialServiceWidget extends StatelessWidget {
             icon: service.icon,
             title: service.title,
             description: service.subtitle,
-            onTap: () => openServiceOrComingSoon(uri: service.uri, title: service.title),
+            onTap: () => _openAndRecord(uri: service.uri, title: service.title),
           ),
       ],
     );
@@ -94,7 +96,7 @@ class SimpleTrendingServiceWidget extends StatelessWidget {
             TPServiceListBlock(
               icon: service.icon,
               title: service.title,
-              onTap: () => openServiceOrComingSoon(
+              onTap: () => _openAndRecord(
                 uri: service.url,
                 title: service.title,
                 forceTitle: service.forceWebViewTitle,
@@ -128,4 +130,10 @@ class SimpleSectionTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 打開服務，並記成使用者點開這個服務（推薦用）。
+Future<void> _openAndRecord({required String uri, required String title, String? forceTitle}) {
+  UserTraitRecorder().recordBrowse(RecommendationSurface.service, title);
+  return openServiceOrComingSoon(uri: uri, title: title, forceTitle: forceTitle);
 }

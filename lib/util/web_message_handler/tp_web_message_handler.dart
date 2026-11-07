@@ -252,10 +252,10 @@ class NotifyMessageHandler extends TPWebMessageHandler {
         final String content = json['content'];
         if (RegExp(r'已訂閱(.+)').hasMatch(content)) {
           final String target = RegExp(r'已訂閱(.+)').firstMatch(content)!.group(1)!;
-          Get.find<SubscriptionService>().addSubscription(title: target);
+          Get.find<SubscriptionService>().addSubscription(title: target, byUser: true);
         } else if (RegExp(r'已取消訂閱(.+)').hasMatch(content)) {
           final String target = RegExp(r'已取消訂閱(.+)').firstMatch(content)!.group(1)!;
-          Get.find<SubscriptionService>().removeSubscription(title: target);
+          Get.find<SubscriptionService>().removeSubscription(title: target, byUser: true);
         }
       default:
         onReply?.call(replyWebMessage(data: false));

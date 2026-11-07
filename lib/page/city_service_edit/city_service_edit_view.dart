@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
@@ -130,6 +132,7 @@ class CityServiceEditView extends GetView<CityServiceEditViewController> {
                                     }
                                   } else {
                                     if (itemId.item.destinationUrl.isNotEmpty) {
+                                      UserTraitRecorder().recordBrowse(RecommendationSurface.service, itemId.item.title);
                                       await TPRoute.openUri(
                                         uri: itemId.item.destinationUrl,
                                       );

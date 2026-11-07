@@ -102,11 +102,23 @@ enum TraitSource {
   click(weight: 0.9),
 
   /// 關鍵字直接命中服務名稱（沒有經過 LLM）。
-  keyword(weight: 0.6);
+  keyword(weight: 0.6),
 
-  const TraitSource({required this.weight});
+  /// 使用者明確選擇：訂閱主題、把服務加進「我的服務」。
+  explicit(weight: 1.0),
+
+  /// 使用者點開內容：首頁輪播、活動、繳費項目、服務、訂閱訊息。比明確選擇弱。
+  browse(weight: 0.6),
+
+  /// 使用者明確拒絕：取消訂閱、從「我的服務」移除。這是反向證據，會扣分（見 TraitAggregator）。
+  optOut(weight: 1.0, negative: true);
+
+  const TraitSource({required this.weight, this.negative = false});
 
   final double weight;
+
+  /// 反向證據：代表「不要」，扣分而不是加分。
+  final bool negative;
 }
 
 /// LLM 從一句問句推論出的特徵（尚未存檔）。

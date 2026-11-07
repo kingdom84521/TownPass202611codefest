@@ -13,7 +13,12 @@ class UserTraitRepository {
 
   static const String fileName = 'user_traits.db';
   static const String table = 'trait_observations';
-  static const int schemaVersion = 1;
+
+  /// 使用者明確拒絕的推薦項目（取消訂閱、從我的服務移除）：之後不再推薦，重新選擇時刪除。
+  static const String rejectedTable = 'rejected_items';
+
+  /// 1：觀察表；2：加上 [rejectedTable]。
+  static const int schemaVersion = 2;
 
   /// 超過這麼久的觀察在開啟時刪除（衰減後也幾乎沒有權重了）。
   static const Duration retention = Duration(days: 365);
@@ -49,6 +54,10 @@ class UserTraitRepository {
             )''');
           await db.execute('CREATE INDEX idx_${table}_trait ON $table (dimension, value)');
           await db.execute('CREATE INDEX idx_${table}_time ON $table (observed_at)');
+          await _createRejectedTable(db);
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) await _createRejectedTable(db);
         },
       ),
     );
@@ -106,7 +115,35 @@ class UserTraitRepository {
   }
 
   /// 清除全部資料（之後若要提供「清除」功能可直接使用）。
-  Future<void> clear() => _db.delete(table);
+  Future<void> clear() async {
+    await _db.delete(table);
+    await _db.delete(rejectedTable);
+  }
+
+  static Future<void> _createRejectedTable(Database db) => db.execute('''
+        CREATE TABLE IF NOT EXISTS $rejectedTable (
+          surface TEXT NOT NULL,
+          item TEXT NOT NULL,
+          rejected_at INTEGER NOT NULL,
+          PRIMARY KEY (surface, item)
+        )''');
+
+  /// 記下使用者拒絕了某個推薦位置（[surface]）的某個項目。
+  Future<void> rejectItem(String surface, String item, {DateTime? at}) => _db.insert(
+        rejectedTable,
+        {'surface': surface, 'item': item, 'rejected_at': (at ?? DateTime.now()).millisecondsSinceEpoch},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+  /// 使用者又重新選擇了這個項目：拒絕作廢。
+  Future<void> unrejectItem(String surface, String item) =>
+      _db.delete(rejectedTable, where: 'surface = ? AND item = ?', whereArgs: [surface, item]);
+
+  /// 被拒絕的項目，(推薦位置, 項目名稱)。
+  Future<Set<(String, String)>> rejectedItems() async => {
+        for (final Map<String, Object?> row in await _db.query(rejectedTable))
+          (row['surface']! as String, row['item']! as String),
+      };
 
   /// 刪掉某個證據鍵的所有觀察（設定類訊號改選時，用新的取代舊的）。
   Future<void> removeEvidence(String evidenceKey) =>

@@ -1,6 +1,8 @@
 import 'package:town_pass/util/tp_cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:town_pass/page/home/widget/news/news_banner_widget_controller.dart';
@@ -55,7 +57,10 @@ class NewsBannerWidget extends StatelessWidget {
                     (item) {
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () async => await TPRoute.openUri(uri: item.webUrl),
+                        onTap: () async {
+                          UserTraitRecorder().recordBrowse(RecommendationSurface.homeBanner, item.title);
+                          await TPRoute.openUri(uri: item.webUrl);
+                        },
                         child: Semantics(
                           label: item.title,
                           child: _BannerRectangle(

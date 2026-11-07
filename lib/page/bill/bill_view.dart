@@ -1,5 +1,6 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/bill/widget/bill_app_bar.dart';
@@ -186,7 +187,10 @@ class BillView extends StatelessWidget {
             _BillType(
               icon: item.icon,
               name: item.name,
-              onTap: () async => await TPRoute.openUri(uri: item.uri),
+              onTap: () async {
+                UserTraitRecorder().recordBrowse(RecommendationSurface.bill, item.name);
+                await TPRoute.openUri(uri: item.uri);
+              },
             ),
         ],
       );

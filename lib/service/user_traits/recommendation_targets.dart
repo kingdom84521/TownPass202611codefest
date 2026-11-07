@@ -162,6 +162,7 @@ abstract final class RecommendationTargets {
     List<UserTrait> traits, {
     required String Function(T item) titleOf,
     double Function(RecommendationTarget)? bonus,
+    double Function(RecommendationTarget)? scoreOf,
   }) {
     final List<RecommendationTarget> targets = of(surface);
     final List<(int, T, double)> scored = [
@@ -171,7 +172,7 @@ abstract final class RecommendationTargets {
           items[i],
           targets
               .where((t) => t.matches(titleOf(items[i])))
-              .map((t) => score(t, traits, bonus: bonus))
+              .map((t) => scoreOf?.call(t) ?? score(t, traits, bonus: bonus))
               .fold(0.0, (a, b) => a + b),
         ),
     ]..sort((a, b) {

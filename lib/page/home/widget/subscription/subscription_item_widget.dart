@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:town_pass/bean/subscription.dart';
@@ -18,10 +20,10 @@ class SubscriptionItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Get.toNamed(
-        TPRoute.subscription,
-        arguments: item,
-      ),
+      onTap: () {
+        UserTraitRecorder().recordBrowse(RecommendationSurface.subscriptionTopic, item.title);
+        Get.toNamed(TPRoute.subscription, arguments: item);
+      },
       child: Column(
         children: [
           Row(

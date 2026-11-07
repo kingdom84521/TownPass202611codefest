@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:town_pass/bean/subscription.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 
 /// 訂閱主題與首頁的訂閱訊息（訊息內容是模擬資料）。
 ///
@@ -33,16 +35,24 @@ class SubscriptionService extends GetxService {
   }
 
   /// 新增訂閱項目（已訂閱就不動作），預設產生兩筆測試用的模擬資料。
-  void addSubscription({required String title}) {
+  /// [byUser]：使用者自己按的（推薦列、訂閱網頁），會記成明確選擇；同步、還原不算。
+  void addSubscription({required String title, bool byUser = false}) {
     if (isSubscribed(title)) return;
     itemList.addAll(_mockItems(title));
     _save();
+    if (byUser) _recordChoice(title, chosen: true);
   }
 
-  void removeSubscription({required String title}) {
+  /// [byUser]：使用者在訂閱網頁取消，會記成明確拒絕（之後不再推薦這個主題）。
+  void removeSubscription({required String title, bool byUser = false}) {
+    if (!isSubscribed(title)) return;
     itemList.removeWhere((item) => item.title == title);
     _save();
+    if (byUser) _recordChoice(title, chosen: false);
   }
+
+  void _recordChoice(String title, {required bool chosen}) =>
+      UserTraitRecorder().recordChoice(RecommendationSurface.subscriptionTopic, title, chosen: chosen);
 
   List<SubscriptionItem> _mockItems(String title) {
     final now = DateTime.now();
