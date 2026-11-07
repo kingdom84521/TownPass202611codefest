@@ -145,11 +145,17 @@ abstract final class RecommendationTargets {
 
   /// 項目對這位使用者的分數：符合且夠可信的特徵，可信度加總，再加上語意加分 [bonus]
   /// （使用者關心的服務和這個項目有多接近，見 RecommendationEmbeddings）。刻意不推薦的項目不加分。
+  ///
+  /// 互斥維度（例如交通方式）掛了 k 個值的項目，代表「其中之一」，每個值只算 1/k：
+  /// 「交通措施」同時掛開車與大眾運輸，對開車族只算一半，比只掛開車的「停車費通知」不具體。
   static double score(RecommendationTarget target, List<UserTrait> traits, {double Function(RecommendationTarget)? bonus}) {
     double total = target.excludedReason == null ? (bonus?.call(target) ?? 0) : 0;
     for (final UserTrait trait in traits) {
       if (trait.confidence < TraitAggregator.confidentThreshold) continue;
-      if (target.tags.contains((trait.dimension, trait.value))) total += trait.confidence;
+      if (!target.tags.contains((trait.dimension, trait.value))) continue;
+      final int alternatives =
+          trait.dimension.exclusive ? target.tags.where((tag) => tag.$1 == trait.dimension).length : 1;
+      total += trait.confidence / alternatives;
     }
     return total;
   }

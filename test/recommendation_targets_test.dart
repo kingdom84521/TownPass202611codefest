@@ -109,7 +109,8 @@ void main() {
         ],
         titleOf: (t) => t,
       );
-      expect(ranked.take(3), ['交通措施', '停車費通知', '銀髮資訊']);
+      // 停車費通知只掛開車，比同時掛開車與大眾運輸（其中之一）的交通措施具體，排前面
+      expect(ranked.take(3), ['停車費通知', '銀髮資訊', '交通措施']);
     });
 
     test('traits below the confidence threshold are ignored', () {

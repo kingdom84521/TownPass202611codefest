@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:town_pass/page/demo_scenarios/demo_scenarios_view.dart';
 import 'package:town_pass/page/account/account_view.dart';
 import 'package:town_pass/page/account/account_view_controller.dart';
 import 'package:town_pass/page/activity_detail/activity_detail_view.dart';
@@ -58,6 +59,7 @@ abstract class TPRoute {
   static const String service = '/service';
   static const String serviceEdit = '/service_edit';
   static const String serviceAssistant = '/service_assistant';
+  static const String demoScenarios = '/demo_scenarios';
   static const String setting = '/setting';
   static const String settingStartPage = '/setting_start_page';
   static const String subscription = '/subscription';
@@ -152,6 +154,10 @@ abstract class TPRoute {
       binding: BindingsBuilder(() {
         Get.put<CityServiceEditViewController>(CityServiceEditViewController());
       }),
+    ),
+    GetPage(
+      name: demoScenarios,
+      page: () => const DemoScenariosView(),
     ),
     GetPage(
       name: serviceAssistant,

@@ -98,6 +98,10 @@ class JevRecommendationRanker {
     };
   }
 
-  /// Jev 機率換成加分：0.5 以下（不確定或否）不加分，1.0 加 1 分，和一個確定的特徵相當。
-  static double bonusOf(double probability) => ((probability - 0.5) * 2).clamp(0.0, 1.0);
+  /// Jev 機率換成加分：0.5 以下（不確定或否）不加分，1.0 加 [weight] 分。
+  /// Jev 看得到整份側寫，比人工對照表可靠，所以權重是兩個確定特徵：
+  /// 實測開車族「交通措施」靠多掛一個「道路交通」特徵（0.84）會超過「停車費通知」，權重 1 時擋不住。
+  static const double weight = 2.0;
+
+  static double bonusOf(double probability) => ((probability - 0.5) * 2).clamp(0.0, 1.0) * weight;
 }

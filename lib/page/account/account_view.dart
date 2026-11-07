@@ -95,6 +95,12 @@ class AccountView extends GetView<AccountViewController> {
                       },
                     ),
                     TPSettingListTile.line(),
+                    TPSettingListTile.navigate(
+                      title: '示範題組',
+                      content: '推薦功能展示',
+                      onTap: () => Get.toNamed(TPRoute.demoScenarios),
+                    ),
+                    TPSettingListTile.line(),
                     TPSettingListTile.switchButton(
                       title: '簡易模式（服務改為大區塊）',
                       controller: controller.simpleModeSwitchController,

@@ -35,6 +35,9 @@ class RecommendationService extends GetxService {
   String? _lastProfileSignature;
   int _systemOneRequest = 0;
 
+  /// 最近一次 System One 重新判斷；測試或模擬腳本可以 await 它等結果回來。
+  Future<void> lastSystemOneRefresh = Future.value();
+
   /// 夠可信的特徵（依可信度由高到低）。
   final RxList<UserTrait> traits = <UserTrait>[].obs;
 
@@ -111,7 +114,7 @@ class RecommendationService extends GetxService {
     if (signature == _lastProfileSignature) return;
     _lastProfileSignature = signature;
     final int request = ++_systemOneRequest;
-    _systemOne.rank(profile, texts: _embeddings).then((scores) {
+    lastSystemOneRefresh = _systemOne.rank(profile, texts: _embeddings).then((scores) {
       if (request != _systemOneRequest) return; // 已有更新的側寫
       systemOneScores.assignAll(scores);
       final List<MapEntry<String, double>> top = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));

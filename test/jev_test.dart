@@ -259,18 +259,18 @@ void recommendationRankerTests() {
       expect(scores.length, JevRecommendationRanker.targets.length);
     });
 
-    test('機率換成加分：0.5 以下不加，1.0 加 1', () {
+    test('機率換成加分：0.5 以下不加，1.0 加 weight 分', () {
       expect(JevRecommendationRanker.bonusOf(0.3), 0);
       expect(JevRecommendationRanker.bonusOf(0.5), 0);
-      expect(JevRecommendationRanker.bonusOf(0.86), closeTo(0.72, 1e-9));
-      expect(JevRecommendationRanker.bonusOf(1.0), 1);
+      expect(JevRecommendationRanker.bonusOf(0.86), closeTo(0.72 * JevRecommendationRanker.weight, 1e-9));
+      expect(JevRecommendationRanker.bonusOf(1.0), JevRecommendationRanker.weight);
     });
 
-    test('問過停車費：特徵同分時，System One 讓停車費通知排在交通措施前面', () {
+    test('問過停車費：停車費通知排在交通措施前面，System One 讓差距更明確', () {
       final RecommendationService service = RecommendationService()
         ..setTraits([trait(TraitDimension.transport, 'car_scooter', 0.95)]);
-      // 沒有 System One：同分，照對照表順序交通措施在前（原本的問題）
-      expect(service.subscriptionTopics(subscribed: {}), ['交通措施', '停車費通知']);
+      // 沒有 System One：交通措施的開車只算一半（開車或大眾運輸其中之一），停車費通知已在前
+      expect(service.subscriptionTopics(subscribed: {}), ['停車費通知', '交通措施']);
       // 實測機率：停車費通知 0.86、交通措施 0.61
       service.setSystemOneScores({
         (RecommendationSurface.subscriptionTopic, '停車費通知'): 0.86,

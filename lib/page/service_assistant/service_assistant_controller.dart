@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:town_pass/page/demo_scenarios/demo_scenarios_view.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/jev_service_selector.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
@@ -60,6 +61,22 @@ class ServiceAssistantController extends GetxController {
         traits = traits ?? UserTraitRecorder(),
         systemOne = systemOne ?? JevTraitClassifier(),
         _ragFuture = rag == null ? null : Future.value(rag);
+
+  @override
+  void onReady() {
+    super.onReady();
+    // 從「示範題組」進來：自動依序提問（每題等回覆與特徵寫入完成再問下一題）
+    if (Get.arguments case final DemoRun demo) _runDemo(demo.questions);
+  }
+
+  Future<void> _runDemo(List<String> questions) async {
+    for (final String question in questions) {
+      if (isClosed) return;
+      await Future<void>.delayed(const Duration(milliseconds: 600)); // 讓畫面看得出一題一題問
+      await send(question);
+      await lastTraitRecord;
+    }
+  }
 
   /// System One（Jev）判斷特徵：有金鑰時每個問題都問（關鍵字直接回覆的也問），取代 Gemini 順帶推論的特徵。
   final JevTraitClassifier systemOne;
