@@ -89,3 +89,6 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+
+# 服務小幫手的 Gemini API 金鑰（用 --dart-define-from-file 帶入，不可進版控）
+gemini.env.json

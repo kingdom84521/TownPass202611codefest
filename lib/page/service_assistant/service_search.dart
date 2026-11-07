@@ -31,6 +31,9 @@ class ServiceSearchEntry {
   /// 自訂開啟行為（例如撥號），未設定時開啟 [uri]。
   final VoidCallback? onOpen;
 
+  /// 沒有網址也沒有自訂行為，點了只會顯示「敬請期待」。
+  bool get isComingSoon => uri.isEmpty && onOpen == null;
+
   void open() {
     if (onOpen != null) {
       onOpen!();
@@ -267,6 +270,21 @@ abstract final class ServiceSearch {
   }
 
   static const int _minScore = 3;
+
+  /// 問句對所有服務的最高分；小幫手用來判斷關鍵字比對夠不夠有把握，不夠就改問 AI。
+  /// 參考值：名稱直接命中 ≥ 20；只靠單字同義詞或字詞片段重疊多半 < 20。
+  static int topScore(String query, {List<ServiceSearchEntry>? entries}) {
+    final String normalizedQuery = _stripFillers(_normalize(query));
+    if (normalizedQuery.isEmpty) {
+      return 0;
+    }
+    int best = 0;
+    for (final ServiceSearchEntry entry in entries ?? catalog) {
+      final int value = score(entry, normalizedQuery);
+      if (value > best) best = value;
+    }
+    return best;
+  }
 
   /// [query] 須已經過 [_normalize] 與 [_stripFillers]。
   static int score(ServiceSearchEntry entry, String query) {

@@ -44,6 +44,8 @@ dependencies:
   fluttertoast: ^10.0.2
   get: ^4.7.3
   geolocator: ^14.1.1
+  # 服務小幫手呼叫 Gemini API（原本已是 cached_network_image 的間接相依）
+  http: ^1.6.0
   intl: ^0.20.3
   image_picker: ^1.2.4
   json_annotation: ^4.12.0
