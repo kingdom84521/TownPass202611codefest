@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
-import 'package:town_pass/page/child_mode/widget/child_mode_pin_dialog.dart';
 import 'package:town_pass/page/home/tour/home_tour.dart';
 import 'package:town_pass/service/simple_mode_service.dart';
 import 'package:town_pass/service/translation_service.dart';
@@ -31,19 +30,9 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
   bool _isChoosingLanguage = false;
 
   Future<void> _onPersonaTap(UserPersona persona) async {
-    // 兒童模式中可從帳戶頁進到這裡，換成其他使用方式需家長驗證，避免小孩自行離開
-    final bool leavingChildMode = _personaService.persona.value == UserPersona.child && persona != UserPersona.child;
-    if (leavingChildMode && !await ChildModePinDialog.show(message: '請輸入 PIN 碼以變更使用方式')) {
-      return;
-    }
-
     switch (persona) {
       case UserPersona.foreign:
         setState(() => _isChoosingLanguage = true);
-      case UserPersona.child:
-        if (await ChildModePinDialog.show(message: '請家長輸入 PIN 碼以開啟兒童模式')) {
-          await _finish(persona);
-        }
       case UserPersona.general || UserPersona.simple:
         await _finish(persona);
     }
@@ -58,11 +47,7 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
     await _personaService.setPersona(persona);
     // 換了使用方式（可能也換了語言），首頁導覽重新顯示一次
     await HomeTour.reset();
-    // 兒童模式沿用原本的簡易模式設定；其他使用方式由選擇決定
-    if (persona != UserPersona.child) {
-      await Get.find<SimpleModeService>().setEnabled(persona == UserPersona.simple);
-    }
-    // 回到主畫面；選「兒童」時由 MainViewController 自動進入兒童模式
+    await Get.find<SimpleModeService>().setEnabled(persona == UserPersona.simple);
     await Get.offAllNamed(TPRoute.main);
   }
 
@@ -104,38 +89,33 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
           title: '歡迎使用・Welcome',
           subtitle: 'ようこそ・Xin chào\n請選擇使用方式・Choose how to use',
         ),
-        TPServiceBlockGrid(
-          childAspectRatio: 0.85,
-          children: [
-            TPServiceBlock(
-              icon: Assets.svg.iconPerson.svg(),
-              title: '一般使用',
-              description: 'Standard',
-              onTap: () => _onPersonaTap(UserPersona.general),
-            ),
-            TPServiceBlock(
-              icon: Assets.svg.iconExploreTaipei.svg(),
-              title: 'Foreign visitor',
-              description: '外籍人士\n外国の方・Người nước ngoài',
-              descriptionMaxLines: 3,
-              onTap: () => _onPersonaTap(UserPersona.foreign),
-            ),
-            TPServiceBlock(
-              // icon_more 的 viewBox 內留白較多，放大到與其他 24 規格圖示一致
-              icon: Transform.scale(scale: 2, child: Assets.svg.iconMore.svg()),
-              title: '簡單好用',
-              description: '大按鈕、好找服務\nEasy mode',
-              descriptionMaxLines: 3,
-              onTap: () => _onPersonaTap(UserPersona.simple),
-            ),
-            TPServiceBlock(
-              icon: Assets.svg.iconFamilyCenter.svg(),
-              title: '兒童',
-              description: '家長設定\nKids (parent setup)',
-              descriptionMaxLines: 3,
-              onTap: () => _onPersonaTap(UserPersona.child),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              TPServiceListBlock(
+                icon: Assets.svg.iconPerson.svg(),
+                title: '一般使用',
+                description: 'Standard',
+                onTap: () => _onPersonaTap(UserPersona.general),
+              ),
+              const SizedBox(height: 12),
+              TPServiceListBlock(
+                icon: Assets.svg.iconExploreTaipei.svg(),
+                title: 'Foreign visitor',
+                description: '外籍人士・外国の方・Người nước ngoài',
+                onTap: () => _onPersonaTap(UserPersona.foreign),
+              ),
+              const SizedBox(height: 12),
+              TPServiceListBlock(
+                // icon_more 的 viewBox 內留白較多，放大到與其他 24 規格圖示一致
+                icon: Transform.scale(scale: 2, child: Assets.svg.iconMore.svg()),
+                title: '簡單好用',
+                description: '大按鈕、好找服務・Easy mode',
+                onTap: () => _onPersonaTap(UserPersona.simple),
+              ),
+            ],
+          ),
         ),
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 20, 16, 0),

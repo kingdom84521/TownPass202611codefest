@@ -57,7 +57,7 @@ class _TappableCard extends StatelessWidget {
   }
 }
 
-/// 大區塊服務按鈕，用於 2x2 網格（簡易模式、兒童模式）。
+/// 大區塊服務按鈕，用於 2x2 網格（簡易模式）。
 class TPServiceBlock extends StatelessWidget {
   const TPServiceBlock({
     super.key,

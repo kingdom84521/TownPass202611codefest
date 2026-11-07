@@ -6,8 +6,8 @@ import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_text.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
-/// 兒童模式的撥號相關對話框，避免小孩誤觸直接撥出電話。
-abstract final class ChildModeCallDialog {
+/// 撥號相關對話框：撥出前先確認，避免誤觸直接撥出電話。
+abstract final class TPCallDialog {
   /// 撥打前先確認，例如 1999。
   static Future<void> confirm({required String number}) async {
     final bool? confirmed = await Get.dialog<bool>(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/bill/bill_view.dart';
-import 'package:town_pass/page/child_mode/widget/child_mode_call_dialog.dart';
+import 'package:town_pass/util/tp_call_dialog.dart';
 import 'package:town_pass/page/city_service/model/my_service_model.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_route.dart';
@@ -90,7 +90,7 @@ abstract final class ServiceSearch {
   /// 各服務開啟方式的例外：清單中尚無網址、但 App 內已有對應功能者。
   static final Map<MyServiceItemId, ({String uri, VoidCallback? onOpen})> _overrides = {
     MyServiceItemId.police: (uri: 'local://online_police', onOpen: null),
-    MyServiceItemId.dedicatedLine: (uri: '', onOpen: () => ChildModeCallDialog.confirm(number: '1999')),
+    MyServiceItemId.dedicatedLine: (uri: '', onOpen: () => TPCallDialog.confirm(number: '1999')),
   };
 
   /// 帳務「熱門繳費」各項的同義詞，以 [PopularBillItem.name] 對應。
@@ -120,7 +120,7 @@ abstract final class ServiceSearch {
           description: '撥打 110 警察、119 消防救護',
           icon: Assets.svg.icon110.svg(),
           keywords: const ['緊急', '救命', '危險', '110', '119', '火災', '失火', '救護車', '受傷', '車禍'],
-          onOpen: ChildModeCallDialog.emergency,
+          onOpen: TPCallDialog.emergency,
         ),
         for (final MyServiceItemId id in MyServiceItemId.values)
           ServiceSearchEntry(
@@ -232,15 +232,8 @@ abstract final class ServiceSearch {
           uri: 'local:/${TPRoute.translationLanguage}',
         ),
         ServiceSearchEntry(
-          title: '兒童模式',
-          description: '切換成適合小朋友使用的畫面',
-          icon: _materialIcon(Icons.child_care),
-          keywords: const ['兒童', '小朋友', '小孩', '孩子', '兒童模式'],
-          uri: 'local:/${TPRoute.childMode}',
-        ),
-        ServiceSearchEntry(
           title: '重新選擇使用方式',
-          description: '重新選擇一般、長輩、兒童等使用方式',
+          description: '重新選擇一般、外籍人士、簡易等使用方式',
           icon: _materialIcon(Icons.people_alt_outlined),
           keywords: const ['使用方式', '長輩', '長者', '老人', '簡易', '身分'],
           uri: 'local:/${TPRoute.personaSelect}',

@@ -13,7 +13,6 @@ import 'package:town_pass/util/tp_text.dart';
 /// 首頁導覽要指向的元件。
 abstract final class HomeTourKeys {
   static final GlobalKey assistantButton = GlobalKey(debugLabel: 'tour_assistant');
-  static final GlobalKey childModeButton = GlobalKey(debugLabel: 'tour_child_mode');
   static final GlobalKey accountButton = GlobalKey(debugLabel: 'tour_account');
 
   /// 底部導覽列；「服務」分頁是其中最左邊的 1/4。
@@ -45,11 +44,9 @@ abstract final class HomeTour {
   /// 重新選擇使用方式後再看一次（可能換了語言）。
   static Future<void> reset() => _preferences.instance.setBool(_keyDone, false);
 
-  /// 尚未看過導覽時顯示；兒童模式不顯示。
+  /// 尚未看過導覽時顯示。
   static void showIfNeeded() {
-    if (isDone || Get.find<UserPersonaService>().persona.value == UserPersona.child) {
-      return;
-    }
+    if (isDone) return;
     show();
   }
 
@@ -107,16 +104,6 @@ abstract final class HomeTour {
             return bar == null ? null : Rect.fromLTWH(bar.left, bar.top, bar.width / 4, bar.height);
           },
         ),
-      _TourStep(
-        icon: Assets.svg.iconFamilyCenter,
-        text: const {
-          _TourLanguage.zh: '兒童模式：給小朋友用的安全畫面，\n要離開需要家長密碼。',
-          _TourLanguage.en: 'Kids mode: a safe screen for children.\nA parent PIN is needed to leave.',
-          _TourLanguage.ja: 'キッズモード：子ども向けの安全な画面です。\n終了には保護者の PIN が必要です。',
-          _TourLanguage.vi: 'Chế độ trẻ em: màn hình an toàn cho trẻ.\nCần mã PIN của phụ huynh để thoát.',
-        },
-        targetRect: () => _rectOf(HomeTourKeys.childModeButton),
-      ),
       _TourStep(
         icon: Assets.svg.iconPerson,
         text: const {

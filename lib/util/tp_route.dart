@@ -9,7 +9,6 @@ import 'package:town_pass/page/basic_info/basic_info_view.dart';
 import 'package:town_pass/page/basic_info/basic_info_view_controller.dart';
 import 'package:town_pass/page/basic_info_edit/basic_info_edit_view.dart';
 import 'package:town_pass/page/basic_info_edit/basic_info_edit_view_controller.dart';
-import 'package:town_pass/page/child_mode/child_mode_view.dart';
 import 'package:town_pass/page/city_service/widget/pinned_service_widget_controller.dart';
 import 'package:town_pass/page/city_service_edit/city_service_edit_view.dart';
 import 'package:town_pass/page/city_service_edit/city_service_edit_view_controller.dart';
@@ -47,7 +46,6 @@ abstract class TPRoute {
   static const String activityDetail = '/activity_detail';
   static const String basicInfo = '/basic_info';
   static const String basicInfoEdit = '/basic_info_edit';
-  static const String childMode = '/child_mode';
   static const String feedback = '/feedback';
   static const String invoiceReceipt = '/invoice_receipt';
   static const String home = '/home';
@@ -99,10 +97,6 @@ abstract class TPRoute {
       binding: BindingsBuilder(() {
         Get.put<BasicInfoEditViewController>(BasicInfoEditViewController());
       }),
-    ),
-    GetPage(
-      name: childMode,
-      page: () => const ChildModeView(),
     ),
     GetPage(
         name: feedback,

@@ -28,18 +28,6 @@ class HomeView extends StatelessWidget {
           ),
           onPressed: () => Get.toNamed(TPRoute.account),
         ),
-        actions: [
-          TextButton(
-            key: HomeTourKeys.childModeButton,
-            onPressed: () => Get.toNamed(TPRoute.childMode),
-            child: const TPText(
-              '兒童模式',
-              style: TPTextStyles.bodySemiBold,
-              color: TPColors.primary500,
-            ),
-          ),
-          const SizedBox(width: 4),
-        ],
         backgroundColor: TPColors.white,
       ),
       floatingActionButton: FloatingActionButton.extended(

@@ -11,9 +11,6 @@ enum UserPersona {
 
   /// 簡單好用：開啟簡易模式（大區塊服務）。
   simple,
-
-  /// 兒童：每次開啟 App 都進入兒童模式。
-  child,
   ;
 }
 
@@ -21,6 +18,7 @@ class UserPersonaService extends GetxService {
   static const String _keyUserPersona = 'user_persona';
 
   /// 尚未選擇時為 null，開啟 App 會先進入「我是誰」選擇頁。
+  /// 已移除的使用方式（例如舊版的 `child`）讀出來也是 null，會重新選擇一次。
   final Rxn<UserPersona> persona = Rxn<UserPersona>();
 
   SharedPreferencesService get _preferences => Get.find<SharedPreferencesService>();
