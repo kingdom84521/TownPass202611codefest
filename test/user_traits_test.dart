@@ -206,6 +206,24 @@ void main() {
       expect(await repository.observations(), isEmpty);
     });
 
+    test('wellness is dropped when the question talks about illness or seeing a doctor', () async {
+      const List<InferredTrait> inferred = [
+        InferredTrait(TraitDimension.interest, 'wellness', 0.8),
+        InferredTrait(TraitDimension.language, 'zh', 0.9),
+      ];
+      await recorder.recordInferred('最近一直咳嗽發燒要去哪看醫生', inferred);
+      await recorder.recordInferred('想看一些健康養生的資訊', inferred);
+
+      final String sickKey = UserTraitRecorder.evidenceKey('最近一直咳嗽發燒要去哪看醫生');
+      final List<String> stored = [
+        for (final TraitObservation o in await repository.observations())
+          '${o.evidenceKey == sickKey ? 'sick' : 'info'}:${o.value}',
+      ];
+      expect(stored, ['sick:zh', 'info:wellness', 'info:zh']);
+      expect(UserTraitRecorder.mentionsMedical('I have a fever'), isTrue);
+      expect(UserTraitRecorder.mentionsMedical('想看健康養生的資訊'), isFalse);
+    });
+
     test('LLM traits are stored with their own confidence and model', () async {
       await recorder.recordInferred(
         'I am visiting Taipei, where can I see pandas',
@@ -244,6 +262,16 @@ void main() {
       ]);
       expect(GeminiServiceMatcher.parseTraits(null), isEmpty);
       expect(GeminiServiceMatcher.parseTraits('oops'), isEmpty);
+    });
+
+    test('every allowed value has a Chinese label for the prompt', () {
+      for (final TraitDimension dimension in TraitDimension.values) {
+        for (final String value in dimension.allowedValues) {
+          expect(TraitDimension.labels[value], isNotNull, reason: value);
+        }
+      }
+      expect(TraitDimension.interest.allowedValues,
+          containsAll(['sports', 'culture_events', 'environment', 'wellness', 'learning']));
     });
 
     test('allowed values contain no sensitive categories', () {

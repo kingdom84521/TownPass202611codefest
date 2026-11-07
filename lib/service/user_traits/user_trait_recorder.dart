@@ -50,12 +50,13 @@ class UserTraitRecorder {
     '地方稅': [(TraitDimension.interest, 'bills_payment'), (TraitDimension.relation, 'resident')],
     '停車費': [(TraitDimension.interest, 'bills_payment'), (TraitDimension.transport, 'car_scooter')],
     '學雜費': [(TraitDimension.interest, 'bills_payment'), (TraitDimension.caregiverOf, 'child')],
+    '公訓處自費課程': [(TraitDimension.interest, 'bills_payment'), (TraitDimension.interest, 'learning')],
     '其他繳費': [(TraitDimension.interest, 'bills_payment')],
     '掃描繳費': [(TraitDimension.interest, 'bills_payment')],
     '繳費紀錄': [(TraitDimension.interest, 'bills_payment')],
   };
 
-  @visibleForTesting
+  /// 服務透露的特徵；推薦對照表（RecommendationTargets）也用這份。
   static List<(TraitDimension, String)> traitsOfService(String title) => _serviceTraits[title] ?? const [];
 
   /// 問句的證據鍵：正規化後的 FNV-1a 雜湊。同一句話（不分大小寫、標點）得到同一個鍵；不保存原文。
@@ -68,9 +69,23 @@ class UserTraitRecorder {
     return 'q:${hash.toRadixString(16).padLeft(8, '0')}';
   }
 
+  /// 問句提到這些字，代表在講自己或家人的病況或就醫，此時不記錄 `wellness`
+  /// （避免把病況變成「健康資訊興趣」存下來）。提示詞也要求 LLM 不要填，這裡是第二道防線。
+  /// 只看問句、不看 AI 推薦的服務：App 沒有健康資訊類服務，單純想看養生資訊時 AI 也常推薦聯醫掛號。
+  static const List<String> medicalWords = [
+    '病', '醫', '診', '藥', '痛', '咳', '燒', '癢', '傷', '吐', '暈', '症', '癌', '孕', '掛號', '疫苗', '住院', '開刀',
+    'sick', 'ill', 'doctor', 'hospital', 'clinic', 'fever', 'cough', 'pain', 'medicine', 'vaccine', 'symptom',
+  ];
+
+  static bool mentionsMedical(String query) {
+    final String text = query.toLowerCase();
+    return medicalWords.any(text.contains);
+  }
+
+  /// 記錄 LLM 推論的特徵（問句提到病況或就醫時略過 `wellness`）。
   Future<void> recordInferred(String query, List<InferredTrait> traits, {String? model}) => _save([
         for (final InferredTrait trait in traits)
-          if (trait.dimension.allows(trait.value))
+          if (trait.dimension.allows(trait.value) && !(trait.value == 'wellness' && mentionsMedical(query)))
             TraitObservation(
               dimension: trait.dimension,
               value: trait.value,

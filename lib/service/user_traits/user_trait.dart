@@ -1,7 +1,10 @@
 /// 從使用者的提問推論出的「非敏感」特徵，供之後做功能推薦。
 ///
 /// 只允許下列固定的維度與值（LLM 回傳也以 enum 限制）。刻意不包含任何敏感類別：
-/// 健康與疾病、犯罪受害（詐騙、家暴、報案）、財務與社福身分、宗教、政治、族群、性別、年齡。
+/// 健康狀況與疾病、犯罪受害（詐騙、家暴、報案）、財務與社福身分、宗教、政治、族群、性別、年齡。
+///
+/// `wellness` 只代表「想看健康養生、運動保健的資訊」，不代表任何健康狀況：
+/// 不從症狀、看病、掛號推論，問句對應到醫療服務時也會被丟棄（見 UserTraitRecorder.recordInferred）。
 enum TraitDimension {
   /// 提問使用的語言。
   language(exclusive: true, allowedValues: ['zh', 'en', 'ja', 'vi']),
@@ -30,7 +33,47 @@ enum TraitDimension {
     'city_data',
     'local_media',
     'living_costs', // 物價、民生物資
+    'sports', // 運動、賽事、運動場館
+    'culture_events', // 廟會、節慶、展覽、藝文活動
+    'environment', // 環保、減碳、空氣品質
+    'wellness', // 想看健康養生資訊（不是健康狀況）
+    'learning', // 進修、課程
   ]);
+
+  /// 每個值的中文說明：給 LLM 判斷用，也可直接顯示。
+  static const Map<String, String> labels = {
+    'zh': '中文',
+    'en': '英文',
+    'ja': '日文',
+    'vi': '越南文',
+    'resident': '住在台北',
+    'commuter': '在台北上班或上學',
+    'visitor': '來台北旅遊',
+    'new_resident': '從外國來台灣定居（新住民）',
+    'car_scooter': '開車或騎機車',
+    'public_transit': '搭捷運、公車',
+    'walk_bike': '走路或騎腳踏車',
+    'elder': '長輩',
+    'child': '小孩',
+    'city_affairs': '辦事、申請（申辦、臨櫃、里辦）',
+    'civic_participation': '反映意見（陳情、1999、投票、問卷）',
+    'reading': '借書、閱讀',
+    'family_outings': '親子活動（親子館、動物園）',
+    'pets': '寵物',
+    'nature_parks': '公園綠地',
+    'places_travel': '找地點、觀光',
+    'bills_payment': '繳費',
+    'roads_traffic': '道路交通、施工',
+    'disaster_weather': '災情、天氣、颱風',
+    'city_data': '市政數據',
+    'local_media': '在地廣播',
+    'living_costs': '物價',
+    'sports': '運動、賽事、運動場館',
+    'culture_events': '文化活動（廟會、節慶、展覽）',
+    'environment': '環保、減碳、空氣品質',
+    'wellness': '想看健康養生、運動保健資訊',
+    'learning': '進修、課程',
+  };
 
   const TraitDimension({required this.exclusive, required this.allowedValues});
 

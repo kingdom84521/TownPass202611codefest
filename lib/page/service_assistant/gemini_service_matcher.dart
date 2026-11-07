@@ -119,13 +119,16 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
   /// LLM 自評可信度低於此值的特徵直接丟棄。
   static const double minTraitConfidence = 0.3;
 
-  static const String _traitRules = '\n\n另外，請在 traits 推測提問者的特徵，供 App 之後推薦功能：\n'
+  static final String _traitRules = '\n\n另外，請在 traits 推測提問者的特徵，供 App 之後推薦功能：\n'
       '- 只根據這一句問句本身，沒有線索的項目不要填，不要猜。\n'
       '- language：問句使用的語言（zh 中文、en 英文、ja 日文、vi 越南文）。\n'
       '- relation：resident 住在台北、commuter 在台北上班上學、visitor 來台北旅遊、new_resident 從外國來台定居。\n'
       '- transport：car_scooter 開車或騎機車、public_transit 捷運公車、walk_bike 走路或腳踏車。\n'
       '- caregiverOf：家中需要提問者照顧的人（elder 長輩、child 小孩）。\n'
-      '- interests：提問者關心的服務類型。\n'
+      '- interests：提問者關心的類型，可多個：'
+      '${TraitDimension.interest.allowedValues.map((v) => '$v＝${TraitDimension.labels[v]}').join('；')}。\n'
+      '- wellness 只在提問者明確想看健康養生、運動保健「資訊」時才填；'
+      '提到症狀、生病、看醫生、掛號、疫苗、醫療費時一律不要填 wellness。\n'
       '- confidence 介於 0 到 1：明確說出約 0.9，強烈暗示約 0.6，弱線索約 0.3；低於 0.3 就不要輸出。\n'
       '- 絕對不要推測健康或疾病、犯罪受害（詐騙、家暴、報案）、財務或社福身分、宗教、政治、族群、性別、年齡。';
 
