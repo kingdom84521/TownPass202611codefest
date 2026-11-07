@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400" font-family="sans-serif">
+<rect width="800" height="400" fill="#EDF8FA"/>
+<circle cx="64" cy="380" r="128" fill="#B4E2EA" opacity="0.6"/>
+<circle cx="496" cy="20" r="72" fill="#B4E2EA" opacity="0.5"/>
+<circle cx="650" cy="200" r="120" fill="#5AB4C5"/>
+<text x="650" y="243.2" font-size="120" font-weight="700" fill="#FFFFFF" text-anchor="middle">書</text>
+<text x="56" y="157.5" font-size="52" font-weight="700" fill="#22474E">冬季閱讀</text><text x="56" y="222.5" font-size="52" font-weight="700" fill="#22474E">馬拉松</text>
+<text x="56" y="274.5" font-size="26" fill="#22474E" opacity="0.8">借滿 10 本換限定書袋</text>
+</svg>

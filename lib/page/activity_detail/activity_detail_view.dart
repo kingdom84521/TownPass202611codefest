@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:town_pass/util/tp_cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/bean/activity.dart';
@@ -24,7 +24,7 @@ class ActivityDetailView extends StatelessWidget {
       appBar: const TPAppBar(title: '活動訊息'),
       body: Column(
         children: [
-          CachedNetworkImage(imageUrl: activity.imageUrl),
+          tpImage(activity.imageUrl, width: double.infinity),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TPText(

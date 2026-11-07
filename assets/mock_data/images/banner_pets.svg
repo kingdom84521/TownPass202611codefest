@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400" font-family="sans-serif">
+<rect width="800" height="400" fill="#FDF8ED"/>
+<circle cx="64" cy="380" r="128" fill="#F8E3BC" opacity="0.6"/>
+<circle cx="496" cy="20" r="72" fill="#F8E3BC" opacity="0.5"/>
+<circle cx="650" cy="200" r="120" fill="#E7A43C"/>
+<text x="650" y="243.2" font-size="120" font-weight="700" fill="#FFFFFF" text-anchor="middle">寵</text>
+<text x="56" y="157.5" font-size="52" font-weight="700" fill="#74521B">寵物友善公園</text><text x="56" y="222.5" font-size="52" font-weight="700" fill="#74521B">新開放</text>
+<text x="56" y="274.5" font-size="26" fill="#74521B" opacity="0.8">牽繩散步・專屬活動區</text>
+</svg>

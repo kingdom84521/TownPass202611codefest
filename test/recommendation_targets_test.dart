@@ -37,21 +37,30 @@ void main() {
       }
     });
 
-    test('首頁大圖：2 張都有對照', () {
+    test('首頁大圖：每張都剛好對到一項', () {
       final List<String> banners = [
         for (final dynamic item
             in (jsonDecode(File('assets/mock_data/home_banner.json').readAsStringSync()) as Map)['data'] as List)
           '${(item as Map)['title'] ?? ''}${item['name'] ?? ''}',
       ];
-      expect(banners, hasLength(2));
+      expect(banners, hasLength(RecommendationTargets.homeBanners.length));
       for (final String banner in banners) {
-        expect(RecommendationTargets.homeBanners.where((t) => t.matches(banner)), isNotEmpty, reason: banner);
+        expect(RecommendationTargets.homeBanners.where((t) => t.matches(banner)), hasLength(1), reason: banner);
       }
     });
 
-    test('活動訊息：6 則都有對照，且都有特徵（含健康集點）', () {
+    test('示範資料的內建插圖都存在', () {
+      for (final String asset in ['assets/mock_data/home_banner.json', 'assets/mock_data/activity.json']) {
+        for (final dynamic item in (jsonDecode(File(asset).readAsStringSync()) as Map)['data'] as List) {
+          final String url = (item as Map)['image_url'] as String;
+          if (url.startsWith('assets/')) expect(File(url).existsSync(), isTrue, reason: url);
+        }
+      }
+    });
+
+    test('活動訊息：每則都有對照，且都有特徵（含健康集點）', () {
       final List<String> activities = _titles('assets/mock_data/activity.json', 'title');
-      expect(activities, hasLength(6));
+      expect(activities, hasLength(RecommendationTargets.homeActivities.length));
       for (final String title in activities) {
         final Iterable<RecommendationTarget> hit = RecommendationTargets.homeActivities.where((t) => t.matches(title));
         expect(hit, hasLength(1), reason: title);

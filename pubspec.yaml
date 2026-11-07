@@ -100,6 +100,7 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/mock_data/
+    - assets/mock_data/images/
     - assets/rag/
     - assets/image/
     - assets/svg/

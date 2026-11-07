@@ -30,7 +30,7 @@
       "title": "【系統維護完成通知】即日起開放「台北通-健康集點」兌點服務。[System maintenance has been completed]",
       "start_datetime": 1717430400000,
       "end_datetime": 1719676800000,
-      "content": "親愛的市民您好！\n點數兌換系統已完成維護，即日起重新開放「台北通-健康集點」兌點服務，點數兌換期限至113年10月31日止，請盡早完成兌換，若有兌點相關問題，請於上班時間撥打02-27208889分機7112洽詢，將由專人協助您。\n\uD83D\uDC49集點兌換悠遊卡加值金資訊查詢：https://reurl.cc/97R6qY\n\n[System maintenance has been completed]"
+      "content": "親愛的市民您好！\n點數兌換系統已完成維護，即日起重新開放「台北通-健康集點」兌點服務，點數兌換期限至113年10月31日止，請盡早完成兌換，若有兌點相關問題，請於上班時間撥打02-27208889分機7112洽詢，將由專人協助您。\n👉集點兌換悠遊卡加值金資訊查詢：https://reurl.cc/97R6qY\n\n[System maintenance has been completed]"
     },
     {
       "image_url": "https://taipeipass-jrsys.cdn.hinet.net/images/2f375604-be29-4aaf-8143-6010a9df1d01",
@@ -45,6 +45,54 @@
       "start_datetime": 1716998400000,
       "end_datetime": 1719676800000,
       "content": "結合神農宮恭迎天上聖母遶境活動，以「心」遶境為號召，並也達到減碳永續，規劃為期一個月與心互動的系列活動。\n其中包含官方＠LINE尋寶、專屬滿額禮，以及6/1-2兩天的廟前文化市集、文化體驗、商圈優惠護照，邀請民眾體驗傳統文化的同時，用數位方式遊士林，加入士林商圈官方LINE好友即可玩士林文化小遊戲，闖關成功即可獲得商圈電子優惠券，破關完成還可以獲得活動專屬平安符，把祝福帶回家！\n商圈優惠護照領取處：商圈特約店家及神農宮\n\nIn a harmonious blend of tradition and sustainability, the Shennong Temple is proud to present the welcoming procession for Mazu, centered around the theme of a \"heartfelt\" pilgrimage. This event aims to promote carbon reduction and sustainability while engaging the community in a month-long series of interactive activities.\n\nThe festivities will include the official LINE treasure hunt, exclusive gifts for participants, and a vibrant cultural market in front of the temple on 6/1-2. There will be cultural experiences and a discount passport for the shopping district, inviting the public to explore traditional culture through digital means. By joining MRT Shilin Station Nearby Shopping District official LINE account, participants can enjoy a cultural game and earn electronic discount vouchers upon completing challenges. Those who successfully complete the game will also receive a special event-exclusive peace charm to bring blessings home.\n\nDiscount Passport Collection Points：Partner stores in the shopping district and Shennong Temple."
+    },
+    {
+      "image_url": "assets/mock_data/images/activity_transit.svg",
+      "web_url": "https://www.metro.taipei",
+      "title": "捷運×YouBike 轉乘優惠 通勤每趟再折抵",
+      "content": "（示範資料）搭捷運後一小時內轉乘 YouBike，每趟再折抵 5 元，使用同一張電子票證即可自動折抵。適合每天通勤上班、上學的市民。",
+      "start_datetime": 1793462400000,
+      "end_datetime": 1806422400000
+    },
+    {
+      "image_url": "assets/mock_data/images/activity_arts.svg",
+      "web_url": "https://www.gov.taipei",
+      "title": "城市藝術節 戶外免費場 週末公園演出",
+      "content": "（示範資料）每週末下午在大安森林公園、華山大草原有免費戶外演出，包含音樂、舞蹈與街頭劇場，現場不需報名。",
+      "start_datetime": 1794585600000,
+      "end_datetime": 1797696000000
+    },
+    {
+      "image_url": "assets/mock_data/images/activity_budget.svg",
+      "web_url": "https://www.gov.taipei",
+      "title": "參與式預算提案說明會 你的點子變政策",
+      "content": "（示範資料）想改善社區、街道或公園嗎？參加說明會了解如何提案，通過的提案將由市府編列預算執行。各區公所皆有場次。",
+      "start_datetime": 1795104000000,
+      "end_datetime": 1798646400000
+    },
+    {
+      "image_url": "assets/mock_data/images/activity_class.svg",
+      "web_url": "https://www.gov.taipei",
+      "title": "社區大學冬季課程開放報名",
+      "content": "（示範資料）語言、電腦、烹飪、手作、運動等上百門課程開放線上報名，平日晚上與週末皆有開課，部分課程提供長青優惠。",
+      "start_datetime": 1794240000000,
+      "end_datetime": 1797264000000
+    },
+    {
+      "image_url": "assets/mock_data/images/activity_newresident.svg",
+      "web_url": "https://www.gov.taipei",
+      "title": "新住民生活講座 多語翻譯現場服務",
+      "content": "（示範資料）介紹居留、健保、就業與子女就學等生活資訊，現場提供越南語、印尼語、泰語與英語翻譯，歡迎家人一起參加。",
+      "start_datetime": 1795795200000,
+      "end_datetime": 1798387200000
+    },
+    {
+      "image_url": "assets/mock_data/images/activity_zoo.svg",
+      "web_url": "https://www.zoo.gov.taipei",
+      "title": "動物園夜間開放 限定週六晚上",
+      "content": "（示範資料）每週六延長開放至晚上九點，夜行性動物館與兒童動物區開放參觀，適合全家大小一起來。",
+      "start_datetime": 1796400000000,
+      "end_datetime": 1803657600000
     }
   ]
 }

@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:town_pass/util/tp_cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -59,17 +59,17 @@ class NewsBannerWidget extends StatelessWidget {
                         child: Semantics(
                           label: item.title,
                           child: _BannerRectangle(
-                            child: CachedNetworkImage(
-                              imageUrl: item.imageUrl,
+                            child: tpImage(
+                              item.imageUrl,
                               height: double.infinity,
                               width: double.infinity,
                               fit: BoxFit.fitWidth,
-                              placeholder: (context, url) => const Center(
+                              placeholder: const Center(
                                 child: CircularProgressIndicator(
                                   color: TPColors.primary500,
                                 ),
                               ),
-                              errorWidget: (context, url, error) => const Icon(Icons.error),
+                              error: const Icon(Icons.error),
                             ),
                           ),
                         ),

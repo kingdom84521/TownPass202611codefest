@@ -56,9 +56,16 @@ abstract final class RecommendationTargets {
   static const List<RecommendationTarget> homeBanners = [
     RecommendationTarget(RecommendationSurface.homeBanner, '樂運動', [(_i, 'sports'), (_i, 'nature_parks')]),
     RecommendationTarget(RecommendationSurface.homeBanner, '減碳', [(_i, 'environment')]),
+    // 以下為示範資料（插圖在 assets/mock_data/images/）
+    RecommendationTarget(RecommendationSurface.homeBanner, '停車費', [(_t, 'car_scooter'), (_i, 'bills_payment')]),
+    RecommendationTarget(RecommendationSurface.homeBanner, '親子館', [(_i, 'family_outings'), (_c, 'child')]),
+    RecommendationTarget(RecommendationSurface.homeBanner, '防災包', [(_i, 'disaster_weather'), (_r, 'resident')]),
+    RecommendationTarget(RecommendationSurface.homeBanner, '閱讀馬拉松', [(_i, 'reading')]),
+    RecommendationTarget(RecommendationSurface.homeBanner, '寵物友善', [(_i, 'pets'), (_i, 'nature_parks')]),
+    RecommendationTarget(RecommendationSurface.homeBanner, '銀髮樂活', [(_c, 'elder')]),
   ];
 
-  /// 對應 assets/mock_data/activity.json 的 6 則活動。
+  /// 對應 assets/mock_data/activity.json 的活動（原本 6 則＋示範 6 則）。
   static const List<RecommendationTarget> homeActivities = [
     RecommendationTarget(RecommendationSurface.homeActivity, '開徵稅單', [(_i, 'bills_payment'), (_r, 'resident')]),
     RecommendationTarget(RecommendationSurface.homeActivity, '好玩卡', [(_i, 'places_travel'), (_r, 'visitor'), (_t, 'public_transit')]),
@@ -66,6 +73,14 @@ abstract final class RecommendationTargets {
     RecommendationTarget(RecommendationSurface.homeActivity, '健康集點', [(_i, 'wellness'), (_i, 'sports')]),
     RecommendationTarget(RecommendationSurface.homeActivity, '找樂點', [(_i, 'places_travel'), (_r, 'visitor')]),
     RecommendationTarget(RecommendationSurface.homeActivity, '士林好神', [(_i, 'culture_events'), (_i, 'places_travel')]),
+    // 以下為示範資料（插圖在 assets/mock_data/images/）
+    RecommendationTarget(RecommendationSurface.homeActivity, '轉乘優惠', [(_t, 'public_transit'), (_r, 'commuter')]),
+    RecommendationTarget(RecommendationSurface.homeActivity, '藝術節', [(_i, 'culture_events')]),
+    RecommendationTarget(RecommendationSurface.homeActivity, '參與式預算', [(_i, 'civic_participation'), (_i, 'city_affairs')]),
+    RecommendationTarget(RecommendationSurface.homeActivity, '社區大學', [(_i, 'learning')]),
+    RecommendationTarget(RecommendationSurface.homeActivity, '新住民', [(_r, 'new_resident')]),
+    RecommendationTarget(
+        RecommendationSurface.homeActivity, '動物園夜間', [(_i, 'family_outings'), (_r, 'visitor'), (_i, 'places_travel')]),
   ];
 
   /// 訂閱網頁上的 10 個主題（名稱與網頁一致）。

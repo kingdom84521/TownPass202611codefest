@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400" font-family="sans-serif">
+<rect width="600" height="400" fill="#EDF8FA"/>
+<circle cx="48" cy="380" r="128" fill="#B4E2EA" opacity="0.6"/>
+<circle cx="372" cy="20" r="72" fill="#B4E2EA" opacity="0.5"/>
+<circle cx="490" cy="200" r="92" fill="#5AB4C5"/>
+<text x="490" y="233.12" font-size="92" font-weight="700" fill="#FFFFFF" text-anchor="middle">學</text>
+<text x="36" y="162.75" font-size="50" font-weight="700" fill="#22474E">社區大學</text><text x="36" y="225.25" font-size="50" font-weight="700" fill="#22474E">冬季課程</text>
+<text x="36" y="277.25" font-size="26" fill="#22474E" opacity="0.8">開放線上報名</text>
+</svg>
