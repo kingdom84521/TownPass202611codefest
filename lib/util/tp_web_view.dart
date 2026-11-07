@@ -254,6 +254,11 @@ class TPInAppWebView extends StatelessWidget {
   Widget build(BuildContext context) {
     return InAppWebView(
       onWebViewCreated: (controller) async {
+        // inappwebview's Android impl ignores `isInspectable`; enable remote
+        // debugging explicitly so chrome://inspect / Appium WEBVIEW context work.
+        if (kDebugMode && defaultTargetPlatform == TargetPlatform.android) {
+          await InAppWebViewController.setWebContentsDebuggingEnabled(true);
+        }
         await controller.addWebMessageListener(TPWebMessageListener.webMessageListener());
         onWebViewCreated?.call(controller);
       },
