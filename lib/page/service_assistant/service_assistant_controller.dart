@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:town_pass/page/service_assistant/assistant_text.dart';
 import 'package:town_pass/page/demo_scenarios/demo_scenarios_view.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/jev_service_selector.dart';
@@ -161,6 +162,8 @@ class ServiceAssistantController extends GetxController {
     }
     inputController.clear();
     messages.add(ChatMessage(sender: ChatSender.user, text: query));
+    // 英文問就用英文答（服務名稱仍是 App 裡的中文名稱）
+    final AssistantText lang = AssistantText.of(query);
 
     final List<ServiceSearchEntry> keywordResults = ServiceSearch.search(query);
     final bool confident = ServiceSearch.topScore(query) >= confidentScore;
@@ -170,19 +173,19 @@ class ServiceAssistantController extends GetxController {
         _recordTraits((recorder) => recorder.recordKeywordMatch(query, keywordResults.first));
       }
       if (systemOne.isEnabled) _classifyTraits(query);
-      _reply(_keywordReply(keywordResults).withQuery(query));
+      _reply(_keywordReply(keywordResults, lang).withQuery(query));
       return;
     }
 
     isThinking.value = true;
-    _reply(const ChatMessage(sender: ChatSender.assistant, text: '讓我想想…'));
+    _reply(ChatMessage(sender: ChatSender.assistant, text: lang.thinking));
     ChatMessage answer;
     RagRetrieval? retrieval;
     try {
       final ServiceRag rag = await _rag;
       retrieval = await rag.retrieve(query);
       final AiMatchResult ai = await rag.generate(retrieval);
-      answer = _ragReply(ai, retrieval, keywordResults);
+      answer = _ragReply(ai, retrieval, keywordResults, lang);
       final String? decidedBy = ai.decidedBy;
       if (decidedBy != null && decidedBy.startsWith(JevServiceSelector.decidedByPrefix)) {
         // System One 選服務時已一併判斷特徵，不必再問一次
@@ -200,13 +203,14 @@ class ServiceAssistantController extends GetxController {
       // 詳細原因已由 GeminiServiceMatcher 寫進 log；這裡告訴使用者並退回關鍵字（或檢索）結果
       answer = _keywordReply(
         keywordResults.isNotEmpty ? keywordResults : _relatedEntries(retrieval),
-        note: '（${error.userMessage}，以下是關鍵字比對的結果）',
+        lang,
+        note: lang.keywordFallback(lang.english ? lang.aiUnavailable : error.userMessage),
       );
     } catch (error) {
       // 辭庫載入失敗等非預期錯誤：記錄後退回關鍵字比對，小幫手仍可用
       debugPrint('[服務小幫手/RAG] 失敗：$error');
       _ragFuture = null; // 下次再試著載入
-      answer = _keywordReply(keywordResults, note: '（AI 小幫手暫時無法使用，以下是關鍵字比對的結果）');
+      answer = _keywordReply(keywordResults, lang, note: lang.keywordFallback(lang.aiUnavailable));
     } finally {
       isThinking.value = false;
     }
@@ -228,21 +232,24 @@ class ServiceAssistantController extends GetxController {
     ];
   }
 
-  String _groundingNote(RagRetrieval retrieval) {
-    final List<String> details = [
-      retrieval.usedVectors ? '關鍵字＋語意檢索' : '關鍵字檢索',
-      if (retrieval.wasRewritten) '改寫為「${retrieval.rewrittenKeywords.join('、')}」',
-    ];
-    return '依據服務清冊 ${retrieval.hits.length} 筆相關資料（${details.join('，')}）';
-  }
+  String _groundingNote(RagRetrieval retrieval, AssistantText lang) => lang.grounding(
+        hits: retrieval.hits.length,
+        usedVectors: retrieval.usedVectors,
+        rewritten: retrieval.wasRewritten ? retrieval.rewrittenKeywords : const [],
+      );
 
-  ChatMessage _ragReply(AiMatchResult ai, RagRetrieval retrieval, List<ServiceSearchEntry> keywordResults) {
+  ChatMessage _ragReply(
+    AiMatchResult ai,
+    RagRetrieval retrieval,
+    List<ServiceSearchEntry> keywordResults,
+    AssistantText lang,
+  ) {
     if (ai.entries.isNotEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
-        text: ai.reply.isNotEmpty ? ai.reply : '我找到這些服務，點一下就能使用：',
+        text: ai.reply.isNotEmpty ? ai.reply : lang.foundMany,
         results: _distinct(ai.entries),
-        groundingNote: _groundingNote(retrieval),
+        groundingNote: _groundingNote(retrieval, lang),
       );
     }
     // AI 判斷參考資料裡沒有合適服務。System One 決定時只列它認為「可能相關」的（被它判為不相關的不再列）；
@@ -252,37 +259,37 @@ class ServiceAssistantController extends GetxController {
     if (ai.related != null && related.isEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
-        text: '抱歉，App 裡目前沒有直接相關的服務。\n可以撥打 1999 臺北市民當家熱線詢問，或換個說法試試看：',
+        text: lang.noServiceIn1999,
         suggestions: suggestions,
       );
     }
     if (related.isNotEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
-        text: '${ai.reply.isNotEmpty ? ai.reply : '我不太確定你要的是哪個服務'}\n你可以看看這些是否相關：',
+        text: '${ai.reply.isNotEmpty ? ai.reply : lang.notSure}\n${lang.maybeRelated}',
         results: related,
-        groundingNote: retrieval.hits.isEmpty ? null : _groundingNote(retrieval),
+        groundingNote: retrieval.hits.isEmpty ? null : _groundingNote(retrieval, lang),
       );
     }
     return ChatMessage(
       sender: ChatSender.assistant,
-      text: '${ai.reply.isNotEmpty ? ai.reply : '抱歉，我找不到相關的服務'}\n換個說法試試看，例如：',
+      text: '${ai.reply.isNotEmpty ? ai.reply : lang.notFound}\n${lang.tryRephrase}',
       suggestions: suggestions,
     );
   }
 
-  ChatMessage _keywordReply(List<ServiceSearchEntry> results, {String? note}) {
+  ChatMessage _keywordReply(List<ServiceSearchEntry> results, AssistantText lang, {String? note}) {
     final String prefix = note == null ? '' : '$note\n';
     if (results.isEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
-        text: '$prefix抱歉，我找不到相關的服務\n換個說法試試看，例如：',
+        text: '$prefix${lang.notFound}\n${lang.tryRephrase}',
         suggestions: suggestions,
       );
     }
     return ChatMessage(
       sender: ChatSender.assistant,
-      text: '$prefix${results.length == 1 ? '我找到這個服務：' : '我找到這些服務，點一下就能使用：'}',
+      text: '$prefix${results.length == 1 ? lang.foundOne : lang.foundMany}',
       results: results,
     );
   }

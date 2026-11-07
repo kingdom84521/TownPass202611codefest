@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:town_pass/page/service_assistant/assistant_text.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
@@ -62,7 +63,7 @@ class JevServiceSelector implements RagGenerator {
     return AiMatchResult(
       entries: picked.map((document) => document.action).toList(),
       documents: picked,
-      reply: replyFor(picked),
+      reply: replyFor(picked, lang: AssistantText.of(query)),
       traits: JevTraitClassifier.parse(answers),
       decidedBy: '$decidedByPrefix:${answers.model}',
       related: picked.isEmpty ? related(answers, context) : const [],
@@ -110,13 +111,10 @@ class JevServiceSelector implements RagGenerator {
     ];
   }
 
-  /// 固定句型的回覆（沒有選到服務時回傳空字串，由小幫手顯示「找不到」）。
+  /// 固定句型的回覆，語言跟著問句（沒有選到服務時回傳空字串，由小幫手顯示「找不到」）。
   @visibleForTesting
-  static String replyFor(List<RagDocument> picked) => switch (picked.length) {
-        0 => '',
-        1 => '推薦你使用「${picked.first.title}」，點一下就能開始：',
-        _ => '推薦你使用${picked.map((d) => '「${d.title}」').join('、')}，點一下就能開始：',
-      };
+  static String replyFor(List<RagDocument> picked, {AssistantText lang = AssistantText.zh}) =>
+      lang.recommend([for (final RagDocument d in picked) d.title]);
 }
 
 typedef InferredTraitLog = (String, double);

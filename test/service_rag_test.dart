@@ -344,7 +344,7 @@ void main() {
       await controller.send('where can I see pandas');
 
       expect(controller.messages.last.results.single.title, '愛遊動物園');
-      expect(controller.messages.last.groundingNote, contains('關鍵字＋語意檢索'));
+      expect(controller.messages.last.groundingNote, contains('keyword + semantic search'), reason: '英文問句用英文說明');
     });
   });
 
@@ -385,8 +385,8 @@ void main() {
       await controller.send('Someone scammed me on the phone');
 
       expect(controller.messages.last.results.single.title, '165 反詐騙專線');
-      expect(controller.messages.last.groundingNote, contains('改寫為「詐騙」'));
-      expect(controller.messages.last.groundingNote, contains('關鍵字檢索'), reason: '沒有向量時只標關鍵字');
+      expect(controller.messages.last.groundingNote, contains('rewritten as "詐騙"'), reason: '英文問句用英文說明');
+      expect(controller.messages.last.groundingNote, contains('(keyword search'), reason: '沒有向量時只標關鍵字');
     });
 
     test('LLM failure falls back to keyword results with a note', () async {

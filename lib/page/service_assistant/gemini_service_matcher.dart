@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:town_pass/page/service_assistant/assistant_text.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_vector_store.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
@@ -85,7 +86,7 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
     final Map<String, ServiceSearchEntry> byTitle = {for (final entry in catalog) entry.title: entry};
     final _Output output = await _call(
       query: query,
-      systemText: _rules(intro: '請從下方服務清單中挑出最符合的服務', listName: '服務清單（名稱｜說明）') +
+      systemText: _rules(intro: '請從下方服務清單中挑出最符合的服務', listName: '服務清單（名稱｜說明）', query: query) +
           catalog.map((entry) => '- ${entry.title}｜${entry.description}${entry.isComingSoon ? '｜（尚未開放）' : ''}').join('\n'),
       schema: _matchSchema(catalog.map((entry) => entry.title).toList()),
     );
@@ -109,6 +110,7 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
             intro: '下方是依使用者問句，從「台北通服務清冊」檢索出的參考資料（依相關程度排序）。'
                 '只能根據這些資料回答，請挑出最符合的服務',
             listName: '參考資料（名稱｜說明｜狀態）',
+            query: query,
           ) +
           context.map((hit) => hit.document.toContextLine()).join('\n') +
           _traitRules,
@@ -277,7 +279,7 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
 
   // ── 共用 ──────────────────────────────────────────────────────────────
 
-  String _rules({required String intro, required String listName}) =>
+  String _rules({required String intro, required String listName, required String query}) =>
       '你是「台北通 Town Pass」App 的服務小幫手。使用者會用口語描述想做的事，'
       '$intro（最多 $maxMatches 個，依符合程度排序）。\n'
       '規則：\n'
@@ -287,7 +289,8 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
       '且不要再推薦「1999」（1999 是市民熱線，不是急救）；'
       '設施損壞、噪音、路面問題等一般反映，即使提到危險，也不要放「緊急求救」。\n'
       '4. 優先選擇已開放的服務；標示「尚未開放」的服務只有在最符合時才選。\n'
-      '5. reply 用繁體中文、一句話（30 字內），親切說明為什麼推薦這些服務；'
+      '5. reply 用${AssistantText.of(query).replyLanguage}、一句話（30 字內；英文 25 words 內），親切說明為什麼推薦這些服務；'
+      '服務名稱照清單原文寫，不要翻譯；'
       '找不到時說明 App 目前沒有這項服務。你只負責推薦服務，不要承諾會處理、派人或回覆結果。\n\n'
       '$listName：\n';
 
