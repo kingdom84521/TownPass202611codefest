@@ -7,13 +7,13 @@ import 'package:town_pass/util/tp_constant.dart';
 import 'package:town_pass/util/tp_route.dart';
 import 'package:town_pass/util/tp_text.dart';
 
-// 熱門繳費項目的私有資料模型
-class _PopularBillItem {
+// 熱門繳費項目的資料模型；服務小幫手的搜尋（service_search.dart）也會讀取
+class PopularBillItem {
   final Widget icon;
   final String name;
   final String uri;
 
-  const _PopularBillItem({
+  const PopularBillItem({
     required this.icon,
     required this.name,
     required this.uri,
@@ -24,48 +24,48 @@ class BillView extends StatelessWidget {
   const BillView({super.key});
 
   // 熱門繳費項目列表。icon 是執行期建立的 widget，所以不能用 const
-  static final List<_PopularBillItem> _popularBillItems = [
-    _PopularBillItem(
+  static final List<PopularBillItem> popularBillItems = [
+    PopularBillItem(
       icon: Assets.svg.iconBillCar.svg(),
       name: '停車費',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-5/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillWater.svg(),
       name: '水費',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-6/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillLocalTax.svg(),
       name: '地方稅',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/tax-1/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillTuition.svg(),
       name: '學雜費',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-7/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillPublicHousing.svg(),
       name: '國/社宅租金維管費',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-8/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillHospital.svg(),
       name: '聯合醫院醫療費',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-9/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillHousingMaintenance.svg(),
       name: '平價住宅維護費',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-10/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillClass.svg(),
       name: '公訓處自費課程',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/detail/fee-11/',
     ),
-    _PopularBillItem(
+    PopularBillItem(
       icon: Assets.svg.iconBillOther.svg(),
       name: '其他',
       uri: 'https://taipei-pass-service.vercel.app/fee-payment/others/',
@@ -162,8 +162,8 @@ class BillView extends StatelessWidget {
             color: TPColors.grayscale900,
           ),
           const SizedBox(height: 12),
-          // 使用 map 函式根據 _popularBillItems 列表來動態生成 _BillType 小部件
-          ..._popularBillItems.map(
+          // 使用 map 函式根據 popularBillItems 列表來動態生成 _BillType 小部件
+          ...popularBillItems.map(
             (item) => _BillType(
               icon: item.icon,
               name: item.name,
