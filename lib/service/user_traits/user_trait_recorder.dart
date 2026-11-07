@@ -106,6 +106,30 @@ class UserTraitRecorder {
   Future<void> recordOpened(String query, ServiceSearchEntry entry) =>
       _save(_fromService(entry.title, TraitSource.click, clickConfidence, '${evidenceKey(query)}:click:${entry.title}'));
 
+  static const String _languageSettingKey = 'setting:translation_language';
+
+  /// 使用者自己在設定裡選了翻譯語言（取代原本「我是誰」選外籍人士的訊號）。
+  /// 只保留最新的選擇：重複選不會疊加，改選時舊的選擇會被取代。
+  Future<void> recordLanguageChoice(String languageCode) async {
+    if (!TraitDimension.language.allows(languageCode)) return;
+    try {
+      await (await _repository()).removeEvidence(_languageSettingKey);
+    } catch (error) {
+      debugPrint('[使用者特徵] 清除舊的語言設定失敗：$error');
+    }
+    await _save([
+      TraitObservation(
+        dimension: TraitDimension.language,
+        value: languageCode,
+        confidence: clickConfidence,
+        source: TraitSource.click,
+        evidenceKey: _languageSettingKey,
+        observedAt: _clock(),
+        detail: '翻譯語言',
+      ),
+    ]);
+  }
+
   Future<List<UserTrait>> traits({double minConfidence = 0}) async =>
       (await _repository()).traits(now: _clock(), minConfidence: minConfidence);
 

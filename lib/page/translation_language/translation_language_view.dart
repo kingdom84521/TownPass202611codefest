@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/service/translation_service.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_setting_list.dart';
@@ -29,7 +30,12 @@ class TranslationLanguageView extends StatelessWidget {
           ),
           TPSettingListTile.selectionList(
             initialIndex: _translationService.targetLanguage.value.index,
-            onIndexChange: (index) => _translationService.setTargetLanguage(TranslationLanguage.values[index]),
+            onIndexChange: (index) {
+              final TranslationLanguage language = TranslationLanguage.values[index];
+              _translationService.setTargetLanguage(language);
+              // 主動選語言是很強的語言特徵，記下來給推薦用
+              UserTraitRecorder().recordLanguageChoice(language.traitCode);
+            },
             selections: TranslationLanguage.values
                 .map((language) => SettingSelectionListItem(title: language.label))
                 .toList(),

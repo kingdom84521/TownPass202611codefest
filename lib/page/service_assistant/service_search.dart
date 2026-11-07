@@ -232,11 +232,11 @@ abstract final class ServiceSearch {
           uri: 'local:/${TPRoute.translationLanguage}',
         ),
         ServiceSearchEntry(
-          title: '重新選擇使用方式',
-          description: '重新選擇一般、外籍人士、簡易等使用方式',
+          title: '簡易模式',
+          description: '在帳戶頁開啟，服務改為大區塊，比較好找',
           icon: _materialIcon(Icons.people_alt_outlined),
-          keywords: const ['使用方式', '長輩', '長者', '老人', '簡易', '身分'],
-          uri: 'local:/${TPRoute.personaSelect}',
+          keywords: const ['使用方式', '長輩', '長者', '老人', '簡易', '大字', '大按鈕'],
+          uri: 'local:/${TPRoute.account}',
         ),
         ServiceSearchEntry(
           title: '功能教學',

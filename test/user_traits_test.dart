@@ -194,6 +194,20 @@ void main() {
       expect(stored[0].evidenceKey, isNot(stored[1].evidenceKey), reason: '點擊是獨立佐證');
     });
 
+    test('choosing a translation language records a confident language trait', () async {
+      await recorder.recordLanguageChoice('ja');
+      await recorder.recordLanguageChoice('ja'); // 重複選同一個不會疊加
+      await recorder.recordLanguageChoice('xx'); // 不在清單上的值不存
+
+      final List<UserTrait> traits = await recorder.traits(minConfidence: TraitAggregator.confidentThreshold);
+      expect(traits.map((t) => '${t.dimension.name}=${t.value}'), ['language=ja']);
+      expect(traits.single.evidenceCount, 1);
+
+      await recorder.recordLanguageChoice('vi'); // 改選：舊的被取代
+      final List<TraitObservation> stored = await repository.observations();
+      expect(stored.map((o) => '${o.dimension.name}=${o.value}'), ['language=vi']);
+    });
+
     test('sensitive services never produce observations', () async {
       for (final String title in ['警政服務', '緊急求救', '聯醫掛號', '疫苗預約', '聯合醫院醫療費', '國/社宅租金維管費', '平價住宅維護費']) {
         expect(UserTraitRecorder.traitsOfService(title), isEmpty, reason: title);

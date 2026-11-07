@@ -88,12 +88,6 @@ class AccountView extends GetView<AccountViewController> {
                     ),
                     TPSettingListTile.space(),
                     TPSettingListTile.navigate(
-                      title: '重新選擇使用方式',
-                      content: 'Change how to use',
-                      onTap: () => Get.toNamed(TPRoute.personaSelect),
-                    ),
-                    TPSettingListTile.line(),
-                    TPSettingListTile.navigate(
                       title: '再看一次首頁導覽',
                       onTap: () {
                         Get.until((route) => route.settings.name == TPRoute.main);

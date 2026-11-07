@@ -108,6 +108,10 @@ class UserTraitRepository {
   /// 清除全部資料（之後若要提供「清除」功能可直接使用）。
   Future<void> clear() => _db.delete(table);
 
+  /// 刪掉某個證據鍵的所有觀察（設定類訊號改選時，用新的取代舊的）。
+  Future<void> removeEvidence(String evidenceKey) =>
+      _db.delete(table, where: 'evidence_key = ?', whereArgs: [evidenceKey]);
+
   Future<void> close() => _db.close();
 
   Future<void> _prune(DateTime now) async {

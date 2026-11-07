@@ -14,6 +14,13 @@ enum TranslationLanguage {
   /// 以該語言本身書寫的名稱，讓外籍人士能認得。
   final String label;
   final TranslateLanguage mlKitLanguage;
+
+  /// 對應的使用者語言特徵值（見 TraitDimension.language）。
+  String get traitCode => switch (this) {
+        TranslationLanguage.english => 'en',
+        TranslationLanguage.japanese => 'ja',
+        TranslationLanguage.vietnamese => 'vi',
+      };
 }
 
 /// 使用 Google ML Kit 在手機上離線翻譯（中文 → 使用者設定的翻譯語言）。

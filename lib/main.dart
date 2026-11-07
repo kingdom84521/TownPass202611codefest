@@ -12,7 +12,7 @@ import 'package:town_pass/service/shared_preferences_service.dart';
 import 'package:town_pass/service/simple_mode_service.dart';
 import 'package:town_pass/service/subscription_service.dart';
 import 'package:town_pass/service/translation_service.dart';
-import 'package:town_pass/service/user_persona_service.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_route.dart';
 
@@ -42,10 +42,22 @@ Future<void> initServices() async {
   await Get.putAsync<NotificationService>(() async => await NotificationService().init());
   await Get.putAsync<SimpleModeService>(() async => await SimpleModeService().init());
   await Get.putAsync<TranslationService>(() async => await TranslationService().init());
-  await Get.putAsync<UserPersonaService>(() async => await UserPersonaService().init());
+  await _migrateOldPersona();
   await Get.putAsync<RecommendationService>(() async => await RecommendationService().init());
 
   Get.put<SubscriptionService>(SubscriptionService());
+}
+
+/// 舊版「我是誰」選擇頁已移除。之前選過「外籍人士」的使用者，把當時的翻譯語言轉成語言特徵，
+/// 不讓這份訊號消失；「簡單好用」不轉（可能暗示年齡，屬敏感特徵）。只做一次。
+Future<void> _migrateOldPersona() async {
+  final prefs = Get.find<SharedPreferencesService>().instance;
+  final String? persona = prefs.getString('user_persona');
+  if (persona == null) return;
+  if (persona == 'foreign') {
+    await UserTraitRecorder().recordLanguageChoice(Get.find<TranslationService>().targetLanguage.value.traitCode);
+  }
+  await prefs.remove('user_persona');
 }
 
 class MyApp extends StatelessWidget {
@@ -76,8 +88,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      // 尚未選擇使用方式時，先進入「我是誰」選擇頁
-      initialRoute: Get.find<UserPersonaService>().hasChosen ? TPRoute.main : TPRoute.personaSelect,
+      initialRoute: TPRoute.main,
       onInit: () {
         NotificationService.requestPermission();
       },

@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
-import 'package:town_pass/service/translation_service.dart';
-import 'package:town_pass/service/user_persona_service.dart';
+import 'package:town_pass/service/simple_mode_service.dart';
 import 'package:town_pass/util/tp_button.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_text.dart';
@@ -41,9 +40,6 @@ abstract final class HomeTour {
 
   static bool get isDone => _preferences.instance.getBool(_keyDone) ?? false;
 
-  /// 重新選擇使用方式後再看一次（可能換了語言）。
-  static Future<void> reset() => _preferences.instance.setBool(_keyDone, false);
-
   /// 尚未看過導覽時顯示。
   static void showIfNeeded() {
     if (isDone) return;
@@ -74,28 +70,18 @@ abstract final class HomeTour {
     _preferences.instance.setBool(_keyDone, true);
   }
 
-  static _TourLanguage get _language {
-    if (Get.find<UserPersonaService>().persona.value != UserPersona.foreign) {
-      return _TourLanguage.zh;
-    }
-    return switch (Get.find<TranslationService>().targetLanguage.value) {
-      TranslationLanguage.english => _TourLanguage.en,
-      TranslationLanguage.japanese => _TourLanguage.ja,
-      TranslationLanguage.vietnamese => _TourLanguage.vi,
-    };
-  }
+  /// 導覽一律用中文（翻譯語言預設是英文，無法代表使用者看得懂哪種語言）。
+  static _TourLanguage get _language => _TourLanguage.zh;
 
   static List<_TourStep> _steps() {
-    final UserPersona? persona = Get.find<UserPersonaService>().persona.value;
     return [
-      // 「找服務」目前只能比對中文，外籍人士先不介紹
-      if (persona != UserPersona.foreign)
-        _TourStep(
-          icon: Assets.svg.iconTalk,
-          text: const {_TourLanguage.zh: '不知道去哪找？\n點這裡，打字說出你想做的事，就能找到服務。'},
-          targetRect: () => _rectOf(HomeTourKeys.assistantButton),
-        ),
-      if (persona == UserPersona.simple)
+      _TourStep(
+        icon: Assets.svg.iconTalk,
+        text: const {_TourLanguage.zh: '不知道去哪找？\n點這裡，打字說出你想做的事，就能找到服務。'},
+        targetRect: () => _rectOf(HomeTourKeys.assistantButton),
+      ),
+      // 開著簡易模式時，多介紹一下大按鈕的服務頁
+      if (Get.find<SimpleModeService>().isEnabled.value)
         _TourStep(
           icon: Assets.svg.iconTabbarServiceSelect,
           text: const {_TourLanguage.zh: '所有服務都在「服務」這裡，\n已經換成大按鈕，比較好找。'},
@@ -106,12 +92,7 @@ abstract final class HomeTour {
         ),
       _TourStep(
         icon: Assets.svg.iconPerson,
-        text: const {
-          _TourLanguage.zh: '帳戶：可以開關簡易模式、\n改翻譯語言，或重新選擇使用方式。',
-          _TourLanguage.en: 'Account: messages are translated automatically.\nChange the language or how you use the app here.',
-          _TourLanguage.ja: 'アカウント：メッセージは自動で翻訳されます。\nここで言語や使い方を変更できます。',
-          _TourLanguage.vi: 'Tài khoản: tin nhắn được dịch tự động.\nĐổi ngôn ngữ hoặc cách sử dụng tại đây.',
-        },
+        text: const {_TourLanguage.zh: '帳戶：可以開關簡易模式、\n改翻譯語言。'},
         targetRect: () => _rectOf(HomeTourKeys.accountButton),
       ),
     ];
