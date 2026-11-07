@@ -178,4 +178,15 @@ void main() {
       );
     });
   });
+
+  test('特徵或 System One 分數更新時通知重排（首頁大圖、活動用），短時間多次變動只通知一次', () async {
+    final RecommendationService service = RecommendationService()..setTraits(const []);
+    int calls = 0;
+    final worker = service.listenRankingChanges(() => calls++);
+    service.setTraits([_trait(TraitDimension.transport, 'car_scooter', 0.9)]);
+    service.setSystemOneScores({(RecommendationSurface.homeBanner, '停車費'): 0.9});
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(calls, 1);
+    worker.dispose();
+  });
 }
