@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
+import 'package:town_pass/page/service_assistant/service_search.dart';
 import 'package:town_pass/service/system_one/jev_client.dart';
 import 'package:town_pass/service/user_traits/jev_trait_classifier.dart';
 
@@ -64,7 +65,26 @@ class JevServiceSelector implements RagGenerator {
       reply: replyFor(picked),
       traits: JevTraitClassifier.parse(answers),
       decidedBy: '$decidedByPrefix:${answers.model}',
+      related: picked.isEmpty ? related(answers, context) : const [],
     );
+  }
+
+  /// 沒有選中時，機率 ≥ [minRelatedProbability] 的「可能相關」服務（最多 [maxResults] 個、同一服務只列一次）。
+  /// 低於這個值的候選視為不相關，不再列給使用者（例如問失業補助時列出警政、緊急求救）。
+  static const double minRelatedProbability = 0.25;
+
+  @visibleForTesting
+  static List<ServiceSearchEntry> related(JevAnswers answers, List<RagHit> context) {
+    final List<(ServiceSearchEntry, double)> scored = [
+      for (int i = 0; i < context.length; i++)
+        if ((answers.yes('service_$i') ?? 0) case final double p when p >= minRelatedProbability)
+          (context[i].document.action, p),
+    ]..sort((a, b) => b.$2.compareTo(a.$2));
+    final Set<String> seen = {};
+    return [
+      for (final (ServiceSearchEntry entry, _) in scored)
+        if (seen.add(entry.title)) entry,
+    ].take(maxResults).toList();
   }
 
   static JevYesNo serviceQuestion(RagDocument document) {

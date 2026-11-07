@@ -26,6 +26,7 @@ Map<String, dynamic> _yes(double p) => {'type': 'noul', 'noul': p};
 void main() {
   serviceSelectorTests();
   relativeCutoffTests();
+  relatedTests();
 
   group('JevClient', () {
     test('送出 Bearer 金鑰、固定版本與題目；解析答案', () async {
@@ -191,5 +192,28 @@ void relativeCutoffTests() {
       hits,
     );
     expect(picked.map((d) => d.title), ['有話要說', '意見回饋']);
+  });
+}
+
+void relatedTests() {
+  test('沒選中時：只列 System One 給 ≥ 0.25 的「可能相關」，同一服務只列一次；都太低就不列', () {
+    final ServiceInventoryCorpus corpus = ServiceInventoryCorpus.fromJson(
+      jsonDecode(File(ServiceInventoryCorpus.assetPath).readAsStringSync()) as Map<String, dynamic>,
+      catalog: ServiceSearch.catalog,
+    );
+    RagHit hit(String title) => RagHit(corpus.documents.firstWhere((d) => d.title == title), 1);
+    // 問失業補助的實測：申辦服務 0.31，警政、緊急求救都很低
+    final List<RagHit> hits = [hit('警政服務'), hit('緊急求救'), hit('申辦服務'), hit('110 緊急報案')];
+    final JevAnswers answers = JevAnswers(model: 'm', answers: {
+      'service_0': _yes(0.04),
+      'service_1': _yes(0.05),
+      'service_2': _yes(0.31),
+      'service_3': _yes(0.03),
+    });
+    expect(JevServiceSelector.related(answers, hits).map((e) => e.title), ['申辦服務']);
+    expect(
+      JevServiceSelector.related(JevAnswers(model: 'm', answers: {'service_2': _yes(0.1)}), hits),
+      isEmpty,
+    );
   });
 }

@@ -17,7 +17,12 @@ class AiMatchResult {
     this.documents = const [],
     this.traits = const [],
     this.decidedBy,
+    this.related,
   });
+
+  /// 沒選中、但「可能相關」的服務（由 System One 依機率挑出）。
+  /// 不為 null 時，小幫手只列這些，不再用檢索或關鍵字的結果補（那些已被判斷為不相關）。
+  final List<ServiceSearchEntry>? related;
 
   /// 由誰決定的（例如 `jev:jev-1.14.0`）；System One 決定時 [traits] 也已由它判斷，不必再問一次。
   final String? decidedBy;

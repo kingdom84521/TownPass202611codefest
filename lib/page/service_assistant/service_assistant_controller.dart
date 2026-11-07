@@ -200,7 +200,16 @@ class ServiceAssistantController extends GetxController {
   }
 
   List<ServiceSearchEntry> _relatedEntries(RagRetrieval? retrieval) =>
-      (retrieval?.hits ?? const <RagHit>[]).take(maxRelatedHits).map((hit) => hit.document.action).toList();
+      _distinct((retrieval?.hits ?? const <RagHit>[]).map((hit) => hit.document.action)).take(maxRelatedHits).toList();
+
+  /// 同一個服務只列一次（辭庫裡不同文件可能指向同一個服務，例如 110／119 都是「緊急求救」）。
+  static List<ServiceSearchEntry> _distinct(Iterable<ServiceSearchEntry> entries) {
+    final Set<String> seen = {};
+    return [
+      for (final ServiceSearchEntry entry in entries)
+        if (seen.add(entry.title)) entry,
+    ];
+  }
 
   String _groundingNote(RagRetrieval retrieval) {
     final List<String> details = [
@@ -215,13 +224,21 @@ class ServiceAssistantController extends GetxController {
       return ChatMessage(
         sender: ChatSender.assistant,
         text: ai.reply.isNotEmpty ? ai.reply : '我找到這些服務，點一下就能使用：',
-        results: ai.entries,
+        results: _distinct(ai.entries),
         groundingNote: _groundingNote(retrieval),
       );
     }
-    // AI 判斷參考資料裡沒有合適服務；檢索或關鍵字有勉強對到的，仍列出讓使用者參考
-    final List<ServiceSearchEntry> related =
-        keywordResults.isNotEmpty ? keywordResults : _relatedEntries(retrieval);
+    // AI 判斷參考資料裡沒有合適服務。System One 決定時只列它認為「可能相關」的（被它判為不相關的不再列）；
+    // Gemini 決定時沿用原本做法：檢索或關鍵字有勉強對到的，仍列出讓使用者參考
+    final List<ServiceSearchEntry> related = ai.related ??
+        (keywordResults.isNotEmpty ? _distinct(keywordResults) : _relatedEntries(retrieval));
+    if (ai.related != null && related.isEmpty) {
+      return ChatMessage(
+        sender: ChatSender.assistant,
+        text: '抱歉，App 裡目前沒有直接相關的服務。\n可以撥打 1999 臺北市民當家熱線詢問，或換個說法試試看：',
+        suggestions: suggestions,
+      );
+    }
     if (related.isNotEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
