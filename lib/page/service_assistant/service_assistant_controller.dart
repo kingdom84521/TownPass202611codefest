@@ -5,6 +5,9 @@ import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 import 'package:town_pass/service/recommendation_service.dart';
+import 'package:town_pass/service/system_one/jev_client.dart';
+import 'package:town_pass/service/user_traits/jev_trait_classifier.dart';
+import 'package:town_pass/service/user_traits/user_trait.dart';
 import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 
 enum ChatSender { user, assistant }
@@ -47,10 +50,36 @@ class ChatMessage {
 class ServiceAssistantController extends GetxController {
   /// [generator] 預設為 Gemini；[rag] 可直接注入（測試用），否則第一次需要時從辭庫載入。
   /// [traits] 記錄從提問推論的使用者特徵（本機 SQLite），預設寫入 App 共用的資料庫。
-  ServiceAssistantController({RagGenerator? generator, ServiceRag? rag, UserTraitRecorder? traits})
-      : generator = generator ?? rag?.generator ?? GeminiServiceMatcher(),
+  ServiceAssistantController({
+    RagGenerator? generator,
+    ServiceRag? rag,
+    UserTraitRecorder? traits,
+    JevTraitClassifier? systemOne,
+  })  : generator = generator ?? rag?.generator ?? GeminiServiceMatcher(),
         traits = traits ?? UserTraitRecorder(),
+        systemOne = systemOne ?? JevTraitClassifier(),
         _ragFuture = rag == null ? null : Future.value(rag);
+
+  /// System One（Jev）判斷特徵：有金鑰時每個問題都問（關鍵字直接回覆的也問），取代 Gemini 順帶推論的特徵。
+  final JevTraitClassifier systemOne;
+
+  /// 每個問題都用 Jev 判斷特徵；失敗時退回 [fallback]（Gemini 順帶推論的特徵，沒有就不記）。
+  void _classifyTraits(String query, {List<InferredTrait> fallback = const [], String? fallbackModel}) {
+    _recordTraits((recorder) async {
+      List<InferredTrait> inferred = fallback;
+      String? model = fallbackModel;
+      if (systemOne.isEnabled) {
+        try {
+          inferred = await systemOne.classify(query);
+          model = systemOne.model;
+          debugPrint('[System One/Jev] 推論特徵：$inferred');
+        } on JevException catch (error) {
+          debugPrint('[System One/Jev] 失敗，改用 ${fallback.isEmpty ? '不記' : 'Gemini 的特徵'}：${error.message}');
+        }
+      }
+      if (inferred.isNotEmpty) await recorder.recordInferred(query, inferred, model: model);
+    });
+  }
 
   final UserTraitRecorder traits;
 
@@ -118,6 +147,7 @@ class ServiceAssistantController extends GetxController {
       if (keywordResults.isNotEmpty) {
         _recordTraits((recorder) => recorder.recordKeywordMatch(query, keywordResults.first));
       }
+      if (systemOne.isEnabled) _classifyTraits(query);
       _reply(_keywordReply(keywordResults).withQuery(query));
       return;
     }
@@ -131,10 +161,11 @@ class ServiceAssistantController extends GetxController {
       retrieval = await rag.retrieve(query);
       final AiMatchResult ai = await rag.generate(retrieval);
       answer = _ragReply(ai, retrieval, keywordResults);
-      if (ai.traits.isNotEmpty) {
-        final String? model = generator is GeminiServiceMatcher ? (generator as GeminiServiceMatcher).model : null;
-        _recordTraits((recorder) => recorder.recordInferred(query, ai.traits, model: model));
-      }
+      _classifyTraits(
+        query,
+        fallback: ai.traits,
+        fallbackModel: generator is GeminiServiceMatcher ? (generator as GeminiServiceMatcher).model : null,
+      );
     } on AiMatchException catch (error) {
       // 詳細原因已由 GeminiServiceMatcher 寫進 log；這裡告訴使用者並退回關鍵字（或檢索）結果
       answer = _keywordReply(

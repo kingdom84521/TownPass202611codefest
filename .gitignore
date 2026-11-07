@@ -92,3 +92,5 @@ app.*.map.json
 
 # 服務小幫手的 Gemini API 金鑰（用 --dart-define-from-file 帶入，不可進版控）
 gemini.env.json
+# TypeSafe Jev（System One）API 金鑰，同上
+typesafe.env.json
