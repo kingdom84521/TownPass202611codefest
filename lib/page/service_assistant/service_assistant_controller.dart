@@ -4,6 +4,7 @@ import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/recommendation_service.dart';
 import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 
 enum ChatSender { user, assistant }
@@ -69,6 +70,10 @@ class ServiceAssistantController extends GetxController {
 
   static const List<String> defaultSuggestions = ['我想借書', '附近有什麼', '要看醫生', '繳水費', '我要報案'];
 
+  /// 建議問法：依使用者特徵排序（推薦服務未註冊或沒有特徵時就是 [defaultSuggestions]）。
+  static List<String> get suggestions => RecommendationService.maybe?.assistantChips() ?? defaultSuggestions;
+
+
   /// 關鍵字比對達到這個分數（約等於名稱直接命中）就直接回覆，不呼叫 AI。
   static const int confidentScore = 20;
 
@@ -91,10 +96,10 @@ class ServiceAssistantController extends GetxController {
   final RxBool isThinking = false.obs;
 
   final RxList<ChatMessage> messages = <ChatMessage>[
-    const ChatMessage(
+    ChatMessage(
       sender: ChatSender.assistant,
       text: '你好！我是服務小幫手\n告訴我你想做什麼，我幫你找對應的服務。',
-      suggestions: defaultSuggestions,
+      suggestions: suggestions,
     ),
   ].obs;
 
@@ -184,7 +189,7 @@ class ServiceAssistantController extends GetxController {
     return ChatMessage(
       sender: ChatSender.assistant,
       text: '${ai.reply.isNotEmpty ? ai.reply : '抱歉，我找不到相關的服務'}\n換個說法試試看，例如：',
-      suggestions: defaultSuggestions,
+      suggestions: suggestions,
     );
   }
 
@@ -194,7 +199,7 @@ class ServiceAssistantController extends GetxController {
       return ChatMessage(
         sender: ChatSender.assistant,
         text: '$prefix抱歉，我找不到相關的服務\n換個說法試試看，例如：',
-        suggestions: defaultSuggestions,
+        suggestions: suggestions,
       );
     }
     return ChatMessage(

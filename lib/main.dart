@@ -7,6 +7,7 @@ import 'package:town_pass/service/device_service.dart';
 import 'package:town_pass/service/geo_locator_service.dart';
 import 'package:town_pass/service/notification_service.dart';
 import 'package:town_pass/service/package_service.dart';
+import 'package:town_pass/service/recommendation_service.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
 import 'package:town_pass/service/simple_mode_service.dart';
 import 'package:town_pass/service/subscription_service.dart';
@@ -42,6 +43,7 @@ Future<void> initServices() async {
   await Get.putAsync<SimpleModeService>(() async => await SimpleModeService().init());
   await Get.putAsync<TranslationService>(() async => await TranslationService().init());
   await Get.putAsync<UserPersonaService>(() async => await UserPersonaService().init());
+  await Get.putAsync<RecommendationService>(() async => await RecommendationService().init());
 
   Get.put<SubscriptionService>(SubscriptionService());
 }

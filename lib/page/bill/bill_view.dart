@@ -1,7 +1,10 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/bill/widget/bill_app_bar.dart';
+import 'package:town_pass/service/recommendation_service.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_constant.dart';
 import 'package:town_pass/util/tp_route.dart';
@@ -162,18 +165,31 @@ class BillView extends StatelessWidget {
             color: TPColors.grayscale900,
           ),
           const SizedBox(height: 12),
-          // 使用 map 函式根據 popularBillItems 列表來動態生成 _BillType 小部件
-          ...popularBillItems.map(
-            (item) => _BillType(
-              icon: item.icon,
-              name: item.name,
-              onTap: () async => await TPRoute.openUri(uri: item.uri),
-            ),
-          ).toList(),
+          // 依使用者特徵排序熱門繳費（沒有特徵時維持原順序），特徵更新時自動重排
+          switch (RecommendationService.maybe) {
+            null => _billList(popularBillItems),
+            final RecommendationService recommendation => Obx(
+                () => _billList(
+                  recommendation.rank(RecommendationSurface.bill, popularBillItems, titleOf: (item) => item.name),
+                ),
+              ),
+          },
         ],
       ),
     );
   }
+
+  Widget _billList(List<PopularBillItem> items) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final PopularBillItem item in items)
+            _BillType(
+              icon: item.icon,
+              name: item.name,
+              onTap: () async => await TPRoute.openUri(uri: item.uri),
+            ),
+        ],
+      );
 }
 
 class _BillType extends StatelessWidget {

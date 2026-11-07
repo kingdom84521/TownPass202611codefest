@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/recommendation_service.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
 import 'package:town_pass/service/user_traits/user_trait_repository.dart';
 
@@ -125,6 +126,7 @@ class UserTraitRecorder {
     if (observations.isEmpty) return;
     try {
       await (await _repository()).add(observations);
+      notifyTraitsChanged();
       debugPrint('[使用者特徵] 記錄 ${observations.length} 筆：'
           '${observations.map((o) => '${o.dimension.name}=${o.value}(${o.source.name} ${o.confidence.toStringAsFixed(2)})').join('、')}');
     } catch (error) {

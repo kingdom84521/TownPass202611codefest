@@ -6,6 +6,7 @@ import 'package:town_pass/bean/subscription.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/gen/fonts.gen.dart';
 import 'package:town_pass/page/home/widget/subscription/subscription_item_widget.dart';
+import 'package:town_pass/service/recommendation_service.dart';
 import 'package:town_pass/service/subscription_service.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_line.dart';
@@ -91,6 +92,7 @@ class SubscriptionWidget extends StatelessWidget {
             ),
           ),
         ),
+        const _RecommendedTopics(),
         const SizedBox(height: 8),
         Obx(
           () => switch (subscriptionList.isEmpty) {
@@ -151,5 +153,45 @@ class SubscriptionWidget extends StatelessWidget {
         )
       ],
     );
+  }
+}
+
+/// 依使用者特徵推薦訂閱主題，點一下就訂閱；沒有推薦（新使用者或都已訂閱）時不顯示。
+class _RecommendedTopics extends StatelessWidget {
+  const _RecommendedTopics();
+
+  @override
+  Widget build(BuildContext context) {
+    final RecommendationService? recommendation = RecommendationService.maybe;
+    if (recommendation == null) return const SizedBox.shrink();
+    final SubscriptionService subscriptions = Get.find<SubscriptionService>();
+
+    return Obx(() {
+      final List<String> topics = recommendation.subscriptionTopics(
+        subscribed: {for (final item in subscriptions.itemList) item.title},
+      );
+      if (topics.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const TPText('為你推薦', style: TPTextStyles.bodyRegular, color: TPColors.grayscale600),
+            for (final String topic in topics)
+              ActionChip(
+                avatar: const Icon(Icons.add, size: 18, color: TPColors.primary500),
+                label: TPText(topic, style: TPTextStyles.bodyRegular, color: TPColors.primary600),
+                tooltip: '訂閱$topic',
+                backgroundColor: TPColors.white,
+                side: const BorderSide(color: TPColors.primary500),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                onPressed: () => subscriptions.addSubscription(title: topic),
+              ),
+          ],
+        ),
+      );
+    });
   }
 }

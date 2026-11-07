@@ -103,16 +103,20 @@ abstract final class RecommendationTargets {
   ];
 
   /// 小幫手的候選建議問法（都能在小幫手找到對應服務）。
+  /// 前 5 個就是原本的預設問法：沒有特徵時排序不變，畫面跟原本一樣。
   static const List<RecommendationTarget> assistantChips = [
     RecommendationTarget(RecommendationSurface.assistantChip, '我想借書', [(_i, 'reading')]),
     RecommendationTarget(RecommendationSurface.assistantChip, '附近有什麼', [(_i, 'places_travel'), (_r, 'visitor')]),
-    RecommendationTarget(RecommendationSurface.assistantChip, '繳停車費', [(_t, 'car_scooter')]),
+    RecommendationTarget(RecommendationSurface.assistantChip, '要看醫生', [], excludedReason: '醫療，不依特徵推薦，維持預設位置'),
     RecommendationTarget(RecommendationSurface.assistantChip, '繳水費', [(_r, 'resident'), (_i, 'bills_payment')]),
+    RecommendationTarget(RecommendationSurface.assistantChip, '我要報案', [], excludedReason: '報案屬敏感，不依特徵推薦，維持預設位置'),
+    RecommendationTarget(RecommendationSurface.assistantChip, '繳停車費', [(_t, 'car_scooter')]),
     RecommendationTarget(RecommendationSurface.assistantChip, '繳學費', [(_c, 'child')]),
     RecommendationTarget(RecommendationSurface.assistantChip, '路上有坑洞', [(_i, 'civic_participation'), (_i, 'roads_traffic')]),
     RecommendationTarget(RecommendationSurface.assistantChip, '颱風淹水通報', [(_i, 'disaster_weather')]),
     RecommendationTarget(RecommendationSurface.assistantChip, '臨櫃要排隊嗎', [(_i, 'city_affairs')]),
-    RecommendationTarget(RecommendationSurface.assistantChip, '我要報案', [], excludedReason: '報案屬敏感，不依特徵推薦，維持預設位置'),
+    RecommendationTarget(RecommendationSurface.assistantChip, '動物園怎麼去', [(_i, 'family_outings'), (_r, 'visitor')]),
+    RecommendationTarget(RecommendationSurface.assistantChip, '附近的公園', [(_i, 'nature_parks'), (_i, 'pets')]),
   ];
 
   static List<RecommendationTarget> of(RecommendationSurface surface) => switch (surface) {
