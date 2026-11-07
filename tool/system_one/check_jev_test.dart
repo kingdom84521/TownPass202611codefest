@@ -19,7 +19,10 @@ import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.da
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 import 'package:town_pass/service/system_one/jev_client.dart';
+import 'package:town_pass/service/system_one/jev_recommendation_ranker.dart';
 import 'package:town_pass/service/user_traits/jev_trait_classifier.dart';
+import 'package:town_pass/service/user_traits/recommendation_embeddings.dart';
+import 'package:town_pass/service/user_traits/user_trait.dart';
 
 void main() {
   test('Jev 金鑰可用，且能判斷特徵', () async {
@@ -60,6 +63,33 @@ void main() {
       // ignore: avoid_print
       print('「$query」候選 ${hits.length} 筆 → ${result.documents.map((d) => d.title).toList()}｜${result.reply}');
     }
+  }, timeout: const Timeout(Duration(minutes: 1)));
+
+  test('Jev 依使用者側寫判斷推薦（問過停車費的人）', () async {
+    final RecommendationEmbeddings texts = RecommendationEmbeddings.fromJson(
+      jsonDecode(File(RecommendationEmbeddings.assetPath).readAsStringSync()) as Map<String, dynamic>,
+    );
+    UserTrait t(TraitDimension d, String v, double c) =>
+        UserTrait(dimension: d, value: v, confidence: c, evidenceCount: 1, lastObservedAt: DateTime.now());
+    final Map<String, double> scores = await JevRecommendationRanker(client: JevClient(apiKey: _apiKey())).rank(
+      UserProfile(
+        traits: [
+          t(TraitDimension.language, 'zh', 1.0),
+          t(TraitDimension.transport, 'car_scooter', 0.95),
+          t(TraitDimension.interest, 'bills_payment', 0.97),
+          t(TraitDimension.interest, 'reading', 0.97),
+        ],
+        recentItems: const ['停車費'],
+      ),
+      texts: texts,
+    );
+    final List<MapEntry<String, double>> sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    for (final MapEntry<String, double> e in sorted.take(14)) {
+      // ignore: avoid_print
+      print('RANK ${e.key} ${e.value.toStringAsFixed(2)}');
+    }
+    // ignore: avoid_print
+    print('PARK 停車費通知=${scores['subscriptionTopic|停車費通知']} 交通措施=${scores['subscriptionTopic|交通措施']}');
   }, timeout: const Timeout(Duration(minutes: 1)));
 }
 

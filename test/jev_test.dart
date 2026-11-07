@@ -10,7 +10,10 @@ import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/recommendation_service.dart';
 import 'package:town_pass/service/system_one/jev_client.dart';
+import 'package:town_pass/service/system_one/jev_recommendation_ranker.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/service/user_traits/jev_trait_classifier.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
 
@@ -27,6 +30,7 @@ void main() {
   serviceSelectorTests();
   relativeCutoffTests();
   relatedTests();
+  recommendationRankerTests();
 
   group('JevClient', () {
     test('送出 Bearer 金鑰、固定版本與題目；解析答案', () async {
@@ -215,5 +219,72 @@ void relatedTests() {
       JevServiceSelector.related(JevAnswers(model: 'm', answers: {'service_2': _yes(0.1)}), hits),
       isEmpty,
     );
+  });
+}
+
+void recommendationRankerTests() {
+  group('JevRecommendationRanker（推薦排序，疊加在原本的分數上）', () {
+    UserTrait trait(TraitDimension d, String v, double c) =>
+        UserTrait(dimension: d, value: v, confidence: c, evidenceCount: 1, lastObservedAt: DateTime(2026, 11, 7));
+
+    test('側寫只有整理過的特徵與互動，不含問句；敏感項目不出題', () async {
+      late Map<String, dynamic> body;
+      final JevRecommendationRanker ranker = JevRecommendationRanker(
+        client: JevClient(
+          apiKey: 'k',
+          client: MockClient((request) async {
+            body = jsonDecode(request.body) as Map<String, dynamic>;
+            final Map<String, dynamic> questions = body['questions'] as Map<String, dynamic>;
+            return http.Response.bytes(
+              utf8.encode(jsonEncode({
+                'model': 'jev-1.14.0',
+                'answers': {for (final String key in questions.keys) key: _yes(0.3)},
+                'usage': {},
+              })),
+              200,
+            );
+          }),
+        ),
+      );
+      final Map<String, double> scores = await ranker.rank(UserProfile(
+        traits: [trait(TraitDimension.transport, 'car_scooter', 0.95)],
+        recentItems: const ['停車費'],
+      ));
+      final Map<String, dynamic> state = body['state'] as Map<String, dynamic>;
+      expect((state.values.first as Map)['開車或騎機車'], 0.95);
+      expect(state.values.elementAt(1), ['停車費']);
+      final String questions = jsonEncode(body['questions']);
+      expect(questions, isNot(contains('要看醫生')));
+      expect(questions, isNot(contains('聯合醫院醫療費')));
+      expect(scores.length, JevRecommendationRanker.targets.length);
+    });
+
+    test('機率換成加分：0.5 以下不加，1.0 加 1', () {
+      expect(JevRecommendationRanker.bonusOf(0.3), 0);
+      expect(JevRecommendationRanker.bonusOf(0.5), 0);
+      expect(JevRecommendationRanker.bonusOf(0.86), closeTo(0.72, 1e-9));
+      expect(JevRecommendationRanker.bonusOf(1.0), 1);
+    });
+
+    test('問過停車費：特徵同分時，System One 讓停車費通知排在交通措施前面', () {
+      final RecommendationService service = RecommendationService()
+        ..setTraits([trait(TraitDimension.transport, 'car_scooter', 0.95)]);
+      // 沒有 System One：同分，照對照表順序交通措施在前（原本的問題）
+      expect(service.subscriptionTopics(subscribed: {}), ['交通措施', '停車費通知']);
+      // 實測機率：停車費通知 0.86、交通措施 0.61
+      service.setSystemOneScores({
+        (RecommendationSurface.subscriptionTopic, '停車費通知'): 0.86,
+        (RecommendationSurface.subscriptionTopic, '交通措施'): 0.61,
+      });
+      expect(service.subscriptionTopics(subscribed: {}), ['停車費通知', '交通措施']);
+    });
+
+    test('System One 只加分不取代：被拒絕的項目照樣排除', () {
+      final RecommendationService service = RecommendationService()
+        ..setTraits([trait(TraitDimension.transport, 'car_scooter', 0.95)])
+        ..setSystemOneScores({(RecommendationSurface.subscriptionTopic, '停車費通知'): 0.95})
+        ..setRejected([(RecommendationSurface.subscriptionTopic, '停車費通知')]);
+      expect(service.subscriptionTopics(subscribed: {}), ['交通措施']);
+    });
   });
 }

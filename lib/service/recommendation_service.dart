@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/page/city_service/model/my_service_model.dart';
+import 'package:town_pass/service/subscription_service.dart';
+import 'package:town_pass/service/system_one/jev_recommendation_ranker.dart';
 import 'package:town_pass/service/user_traits/recommendation_embeddings.dart';
 import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/service/user_traits/trait_aggregator.dart';
@@ -16,12 +18,22 @@ class RecommendationService extends GetxService {
   RecommendationService({
     Future<UserTraitRepository> Function()? repository,
     Future<RecommendationEmbeddings?> Function()? embeddings,
+    JevRecommendationRanker? systemOne,
   })  : _repository = repository ?? UserTraitRepository.shared,
-        _loadEmbeddings = embeddings ?? RecommendationEmbeddings.load;
+        _loadEmbeddings = embeddings ?? RecommendationEmbeddings.load,
+        _systemOne = systemOne ?? JevRecommendationRanker();
 
   final Future<UserTraitRepository> Function() _repository;
   final Future<RecommendationEmbeddings?> Function() _loadEmbeddings;
+  final JevRecommendationRanker _systemOne;
   RecommendationEmbeddings? _embeddings;
+
+  /// System One 判斷「這個人會想要這個項目」的機率（key 見 [RecommendationEmbeddings.targetKey]）。
+  /// 疊加在特徵分與語意分之上；沒有金鑰或還沒算完時為空，推薦照原本的算法。
+  final RxMap<String, double> systemOneScores = <String, double>{}.obs;
+
+  String? _lastProfileSignature;
+  int _systemOneRequest = 0;
 
   /// 夠可信的特徵（依可信度由高到低）。
   final RxList<UserTrait> traits = <UserTrait>[].obs;
@@ -55,6 +67,12 @@ class RecommendationService extends GetxService {
           .where((trait) => trait.confidence >= TraitAggregator.confidentThreshold));
       debugPrint('[推薦] 特徵 ${traits.length} 筆：${traits.map((t) => '${t.dimension.name}=${t.value}').join('、')}；'
           '關心的服務：${serviceInterests.entries.map((e) => '${e.key} ${e.value.toStringAsFixed(2)}').join('、')}');
+      _refreshSystemOne(UserProfile(
+        traits: traits.toList(),
+        recentItems: recentItemsOf(observations),
+        subscribed: Get.isRegistered<SubscriptionService>() ? Get.find<SubscriptionService>().subscribedTitles : const [],
+        rejected: [for (final String key in rejected) key.split('|').last],
+      ));
     } catch (error) {
       // 讀不到就當作沒有特徵：所有畫面維持原樣
       debugPrint('[推薦] 讀取特徵失敗：$error');
@@ -64,6 +82,53 @@ class RecommendationService extends GetxService {
     }
   }
 
+  /// 最近問過、點過、選過的服務或內容（新的在前，最多 [limit] 個）；不含 LLM 推論、設定與拒絕。
+  static List<String> recentItemsOf(List<TraitObservation> observations, {int limit = 10}) {
+    final List<TraitObservation> sorted = [
+      for (final TraitObservation o in observations)
+        if (o.detail != null &&
+            o.source != TraitSource.llm &&
+            !o.source.negative &&
+            !o.evidenceKey.startsWith('setting:'))
+          o,
+    ]..sort((a, b) => b.observedAt.compareTo(a.observedAt));
+    final Set<String> seen = {};
+    return [
+      for (final TraitObservation o in sorted)
+        if (seen.add(o.detail!)) o.detail!,
+    ].take(limit).toList();
+  }
+
+  /// 側寫有變才請 System One 重新判斷（背景執行，不阻擋畫面；完成後畫面自動重排）。
+  void _refreshSystemOne(UserProfile profile) {
+    if (!_systemOne.isEnabled) return;
+    if (profile.isEmpty) {
+      _lastProfileSignature = null;
+      systemOneScores.clear();
+      return;
+    }
+    final String signature = profile.signature;
+    if (signature == _lastProfileSignature) return;
+    _lastProfileSignature = signature;
+    final int request = ++_systemOneRequest;
+    _systemOne.rank(profile, texts: _embeddings).then((scores) {
+      if (request != _systemOneRequest) return; // 已有更新的側寫
+      systemOneScores.assignAll(scores);
+      final List<MapEntry<String, double>> top = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      debugPrint('[推薦/System One] ${top.take(6).map((e) => '${e.key.split('|').last} ${e.value.toStringAsFixed(2)}').join('、')}');
+    }).catchError((Object error) {
+      if (request == _systemOneRequest) _lastProfileSignature = null; // 下次再試
+      debugPrint('[推薦/System One] 失敗，只用特徵與語意：$error');
+    });
+  }
+
+  /// 測試或預覽用：直接指定 System One 的機率。
+  @visibleForTesting
+  void setSystemOneScores(Map<(RecommendationSurface, String), double> scores) => systemOneScores.assignAll({
+        for (final MapEntry<(RecommendationSurface, String), double> e in scores.entries)
+          RecommendationEmbeddings.targetKey(e.key.$1, e.key.$2): e.value,
+      });
+
   /// 測試或預覽用：直接指定被拒絕的項目。
   @visibleForTesting
   void setRejected(Iterable<(RecommendationSurface, String)> items) =>
@@ -72,7 +137,7 @@ class RecommendationService extends GetxService {
   bool isRejected(RecommendationTarget target) =>
       rejected.contains(RecommendationEmbeddings.targetKey(target.surface, target.match));
 
-  /// 項目分數：特徵＋語意；被拒絕的項目為 0（維持原本位置，不會被推上來）。
+  /// 項目分數：特徵＋語意＋System One；被拒絕的項目為 0（維持原本位置，不會被推上來）。
   double scoreOf(RecommendationTarget target) =>
       isRejected(target) ? 0 : RecommendationTargets.score(target, traits, bonus: _bonus);
 
@@ -92,8 +157,12 @@ class RecommendationService extends GetxService {
     semanticBonuses.assignAll(_embeddings?.bonuses(value) ?? const {});
   }
 
-  double _bonus(RecommendationTarget target) =>
-      semanticBonuses[RecommendationEmbeddings.targetKey(target.surface, target.match)] ?? 0;
+  /// 加分 = 語意相似度 + System One（兩者都只在有資料時加）。
+  double _bonus(RecommendationTarget target) {
+    final String key = RecommendationEmbeddings.targetKey(target.surface, target.match);
+    final double? systemOne = systemOneScores[key];
+    return (semanticBonuses[key] ?? 0) + (systemOne == null ? 0 : JevRecommendationRanker.bonusOf(systemOne));
+  }
 
   /// 依特徵與語意相似度重新排序 [items]（分數相同維持原順序）。
   List<T> rank<T>(RecommendationSurface surface, List<T> items, {required String Function(T item) titleOf}) =>

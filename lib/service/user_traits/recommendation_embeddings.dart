@@ -17,7 +17,13 @@ import 'package:town_pass/service/user_traits/user_trait.dart';
 ///   App 執行時不呼叫 API，也不需要保存問句原文。
 /// - 用 `flutter test tool/rag/build_embeddings_test.dart` 產生。
 class RecommendationEmbeddings {
-  RecommendationEmbeddings(this._targets, this._services);
+  RecommendationEmbeddings(this._targets, this._services, {Map<String, String> texts = const {}}) : _texts = texts;
+
+  /// 每個推薦項目的說明文字（活動、大圖為完整標題；其他為「訂閱主題：…」等），key 見 [targetKey]。
+  /// System One 判斷推薦時拿來出題。
+  final Map<String, String> _texts;
+
+  String? textOf(RecommendationTarget target) => _texts[targetKey(target.surface, target.match)];
 
   static const String assetPath = 'assets/rag/recommendation_embeddings.json';
 
@@ -51,16 +57,20 @@ class RecommendationEmbeddings {
     Float32List vector(Map<String, dynamic> item) =>
         _normalize(Float32List.fromList([for (final dynamic value in item['vector'] as List<dynamic>) (value as num).toDouble()]));
     final Map<String, Float32List> targets = {};
+    final Map<String, String> texts = {};
     for (final Map<String, dynamic> item in (json['targets'] as List<dynamic>).cast<Map<String, dynamic>>()) {
       final RecommendationSurface? surface =
           RecommendationSurface.values.where((s) => s.name == item['surface']).firstOrNull;
-      if (surface != null) targets[targetKey(surface, item['match'] as String)] = vector(item);
+      if (surface == null) continue;
+      final String key = targetKey(surface, item['match'] as String);
+      targets[key] = vector(item);
+      if (item['text'] case final String text) texts[key] = text;
     }
     final Map<String, Float32List> services = {
       for (final Map<String, dynamic> item in (json['services'] as List<dynamic>).cast<Map<String, dynamic>>())
         item['title'] as String: vector(item),
     };
-    return RecommendationEmbeddings(targets, services);
+    return RecommendationEmbeddings(targets, services, texts: texts);
   }
 
   /// 每個推薦項目的語意加分：Σ 服務興趣 × 相關程度（0–1）。刻意不推薦的項目（醫療、報案等）一律 0。
