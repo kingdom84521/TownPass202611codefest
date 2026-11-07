@@ -60,6 +60,9 @@ class UserTraitRecorder {
   /// 服務透露的特徵；推薦對照表（RecommendationTargets）也用這份。
   static List<(TraitDimension, String)> traitsOfService(String title) => _serviceTraits[title] ?? const [];
 
+  /// 對照表裡的所有服務（推薦的語意相似度只會用到這些，不含敏感服務）。
+  static Iterable<String> get serviceTitles => _serviceTraits.keys;
+
   /// 問句的證據鍵：正規化後的 FNV-1a 雜湊。同一句話（不分大小寫、標點）得到同一個鍵；不保存原文。
   static String evidenceKey(String query) {
     int hash = 0x811c9dc5;

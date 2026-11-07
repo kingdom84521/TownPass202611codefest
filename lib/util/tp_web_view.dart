@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
+import 'package:town_pass/service/subscription_service.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/web_message_handler/tp_web_message_listener.dart';
@@ -85,9 +86,11 @@ class TPWebView extends StatelessWidget {
             controller.loadData(data: _failedToLoadUrlData(url: url));
           }
         },
-        onUpdateVisitedHistory: (_, __, ___) async {
+        onUpdateVisitedHistory: (controller, uri, __) async {
           canGoBack.value = await webViewController.value?.canGoBack() ?? false;
+          await _syncSubscriptions(controller, uri);
         },
+        onLoadStop: _syncSubscriptions,
         onTitleChanged: (_, title) {
           appBarController.title.value = switch (forceTitle == null) {
             true => title,
@@ -102,6 +105,16 @@ class TPWebView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 開到訂閱網頁時，App 與網頁的已訂閱主題雙向補齊（見 [subscriptionWebSyncScript]）。
+Future<void> _syncSubscriptions(InAppWebViewController controller, WebUri? uri) async {
+  if (uri == null || uri.host != 'taipei-pass-service.vercel.app' || !uri.path.startsWith('/subscription')) return;
+  if (!Get.isRegistered<SubscriptionService>()) return;
+  final SubscriptionService subscriptions = Get.find<SubscriptionService>();
+  final Object? webSubscribed =
+      await controller.evaluateJavascript(source: subscriptionWebSyncScript(subscriptions.subscribedTitles));
+  subscriptions.mergeWebSubscriptions(webSubscribed);
 }
 
 class TPInAppWebView extends StatelessWidget {

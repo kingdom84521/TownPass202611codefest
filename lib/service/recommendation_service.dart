@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/page/city_service/model/my_service_model.dart';
+import 'package:town_pass/service/user_traits/recommendation_embeddings.dart';
 import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/service/user_traits/trait_aggregator.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
@@ -12,31 +13,47 @@ import 'package:town_pass/service/user_traits/user_trait_repository.dart';
 /// - 只用可信度 ≥ [TraitAggregator.confidentThreshold] 的特徵。
 /// - 沒有任何特徵時，每個推薦都回傳原本的內容與順序，畫面跟沒有推薦時一樣。
 class RecommendationService extends GetxService {
-  RecommendationService({Future<UserTraitRepository> Function()? repository})
-      : _repository = repository ?? UserTraitRepository.shared;
+  RecommendationService({
+    Future<UserTraitRepository> Function()? repository,
+    Future<RecommendationEmbeddings?> Function()? embeddings,
+  })  : _repository = repository ?? UserTraitRepository.shared,
+        _loadEmbeddings = embeddings ?? RecommendationEmbeddings.load;
 
   final Future<UserTraitRepository> Function() _repository;
+  final Future<RecommendationEmbeddings?> Function() _loadEmbeddings;
+  RecommendationEmbeddings? _embeddings;
 
   /// 夠可信的特徵（依可信度由高到低）。
   final RxList<UserTrait> traits = <UserTrait>[].obs;
 
+  /// 使用者關心的服務（問到、點開過，夠可信的）→ 興趣強度。
+  final RxMap<String, double> serviceInterests = <String, double>{}.obs;
+
+  /// 各推薦項目的語意加分（key 見 [RecommendationEmbeddings.targetKey]），由 [serviceInterests] 算出。
+  final RxMap<String, double> semanticBonuses = <String, double>{}.obs;
+
   bool get hasTraits => traits.isNotEmpty;
 
   Future<RecommendationService> init() async {
+    _embeddings = await _loadEmbeddings();
     await reload();
     return this;
   }
 
   Future<void> reload() async {
     try {
-      final List<UserTrait> loaded =
-          await (await _repository()).traits(minConfidence: TraitAggregator.confidentThreshold);
-      traits.assignAll(loaded);
-      debugPrint('[推薦] 特徵 ${loaded.length} 筆：${loaded.map((t) => '${t.dimension.name}=${t.value}').join('、')}');
+      final DateTime now = DateTime.now();
+      final List<TraitObservation> observations = await (await _repository()).observations();
+      _setServiceInterests(serviceInterestsOf(observations, now: now));
+      traits.assignAll(TraitAggregator.aggregate(observations, now: now)
+          .where((trait) => trait.confidence >= TraitAggregator.confidentThreshold));
+      debugPrint('[推薦] 特徵 ${traits.length} 筆：${traits.map((t) => '${t.dimension.name}=${t.value}').join('、')}；'
+          '關心的服務：${serviceInterests.entries.map((e) => '${e.key} ${e.value.toStringAsFixed(2)}').join('、')}');
     } catch (error) {
       // 讀不到就當作沒有特徵：所有畫面維持原樣
       debugPrint('[推薦] 讀取特徵失敗：$error');
       traits.clear();
+      _setServiceInterests(const {});
     }
   }
 
@@ -44,17 +61,37 @@ class RecommendationService extends GetxService {
   @visibleForTesting
   void setTraits(List<UserTrait> value) => traits.assignAll(value);
 
-  /// 依特徵重新排序 [items]（分數相同維持原順序）。
-  List<T> rank<T>(RecommendationSurface surface, List<T> items, {required String Function(T item) titleOf}) =>
-      RecommendationTargets.rank(surface, items, traits, titleOf: titleOf);
+  /// 測試或預覽用：直接指定關心的服務與向量。
+  @visibleForTesting
+  void setServiceInterests(Map<String, double> value, {RecommendationEmbeddings? embeddings}) {
+    if (embeddings != null) _embeddings = embeddings;
+    _setServiceInterests(value);
+  }
 
-  /// 某個位置裡和使用者特徵相關（分數 > 0）的項目，依分數由高到低。
+  void _setServiceInterests(Map<String, double> value) {
+    serviceInterests.assignAll(value);
+    semanticBonuses.assignAll(_embeddings?.bonuses(value) ?? const {});
+  }
+
+  double _bonus(RecommendationTarget target) =>
+      semanticBonuses[RecommendationEmbeddings.targetKey(target.surface, target.match)] ?? 0;
+
+  /// 依特徵與語意相似度重新排序 [items]（分數相同維持原順序）。
+  List<T> rank<T>(RecommendationSurface surface, List<T> items, {required String Function(T item) titleOf}) =>
+      RecommendationTargets.rank(surface, items, traits, titleOf: titleOf, bonus: _bonus);
+
+  /// 某個位置裡和使用者相關（分數 > 0）的項目，依分數由高到低。
   List<RecommendationTarget> matching(RecommendationSurface surface) {
     final List<(RecommendationTarget, double)> scored = [
       for (final RecommendationTarget target in RecommendationTargets.of(surface))
-        (target, RecommendationTargets.score(target, traits)),
+        (target, RecommendationTargets.score(target, traits, bonus: _bonus)),
     ]..removeWhere((pair) => pair.$2 <= 0);
-    scored.sort((a, b) => b.$2.compareTo(a.$2));
+    // 分數相同維持對照表原本的順序
+    final List<RecommendationTarget> order = RecommendationTargets.of(surface);
+    scored.sort((a, b) {
+      final int byScore = b.$2.compareTo(a.$2);
+      return byScore != 0 ? byScore : order.indexOf(a.$1).compareTo(order.indexOf(b.$1));
+    });
     return [for (final (RecommendationTarget target, _) in scored) target];
   }
 

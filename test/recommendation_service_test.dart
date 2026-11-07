@@ -1,8 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:town_pass/page/city_service/model/my_service_model.dart';
 import 'package:town_pass/service/recommendation_service.dart';
+import 'package:town_pass/service/user_traits/recommendation_embeddings.dart';
 import 'package:town_pass/service/user_traits/recommendation_targets.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 
 UserTrait _trait(TraitDimension dimension, String value, double confidence) => UserTrait(
       dimension: dimension,
@@ -79,6 +84,80 @@ void main() {
       expect(pinned, [MyServiceItemId.library, MyServiceItemId.locationSearch, MyServiceItemId.districtOffice]);
       expect(service.suggestedServices(pinned: pinned), isEmpty);
       expect(service.suggestedServices(pinned: _defaults), [MyServiceItemId.library]);
+    });
+  });
+
+  group('語意相似度（真的向量檔）', () {
+    final RecommendationEmbeddings embeddings = RecommendationEmbeddings.fromJson(
+      jsonDecode(File(RecommendationEmbeddings.assetPath).readAsStringSync()) as Map<String, dynamic>,
+    );
+
+    test('向量檔涵蓋每個推薦項目與對照表的每個服務（改了清單要重跑 tool/rag/build_embeddings_test.dart）', () {
+      for (final RecommendationSurface surface in RecommendationSurface.values) {
+        for (final RecommendationTarget target in RecommendationTargets.of(surface)) {
+          expect(embeddings.hasTarget(target), isTrue, reason: '${surface.name} ${target.match}');
+        }
+      }
+      for (final String title in UserTraitRecorder.serviceTitles) {
+        expect(embeddings.hasService(title), isTrue, reason: title);
+      }
+    });
+
+    test('問過停車費：特徵同分時，停車費通知排在交通措施前面', () {
+      // 實機資料：三次關鍵字命中停車費 → 開車／騎車 0.657、關心停車費 0.657
+      final RecommendationService service = RecommendationService()
+        ..setTraits([
+          _trait(TraitDimension.interest, 'places_travel', 0.9),
+          _trait(TraitDimension.transport, 'car_scooter', 0.657),
+          _trait(TraitDimension.interest, 'bills_payment', 0.657),
+        ])
+        ..setServiceInterests({'停車費': 0.657}, embeddings: embeddings);
+
+      expect(service.subscriptionTopics(subscribed: {}), ['停車費通知', '臺北旅遊網最新消息']);
+      expect(service.rank(RecommendationSurface.bill, const ['水費', '學雜費', '停車費'], titleOf: (b) => b).first, '停車費');
+      expect(service.assistantChips().first, '繳停車費');
+    });
+
+    test('沒有關心的服務時沒有語意加分；敏感項目永遠不加分', () {
+      expect(embeddings.bonuses(const {}), isEmpty);
+      final Map<String, double> bonuses = embeddings.bonuses({for (final title in UserTraitRecorder.serviceTitles) title: 1.0});
+      for (final RecommendationSurface surface in RecommendationSurface.values) {
+        for (final RecommendationTarget target in RecommendationTargets.of(surface)) {
+          if (target.excludedReason != null) {
+            expect(bonuses[RecommendationEmbeddings.targetKey(surface, target.match)], isNull, reason: target.match);
+          }
+        }
+      }
+    });
+
+    test('只有點開過、關鍵字命中的服務算「關心」，而且要夠可信', () {
+      final DateTime now = DateTime(2026, 11, 7);
+      TraitObservation keyword(String key) => TraitObservation(
+            dimension: TraitDimension.transport,
+            value: 'car_scooter',
+            confidence: 0.5,
+            source: TraitSource.keyword,
+            evidenceKey: key,
+            observedAt: now,
+            detail: '停車費',
+          );
+      expect(serviceInterestsOf([keyword('q:1')], now: now), isEmpty, reason: '問一次只有 0.3，不夠');
+      expect(serviceInterestsOf([keyword('q:1'), keyword('q:2'), keyword('q:3')], now: now).keys, ['停車費']);
+      expect(
+        serviceInterestsOf([
+          TraitObservation(
+            dimension: TraitDimension.language,
+            value: 'ja',
+            confidence: 0.8,
+            source: TraitSource.click,
+            evidenceKey: 'setting:translation_language',
+            observedAt: now,
+            detail: '翻譯語言',
+          ),
+        ], now: now),
+        isEmpty,
+        reason: '設定不是服務',
+      );
     });
   });
 }

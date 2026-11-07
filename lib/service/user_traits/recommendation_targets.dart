@@ -128,9 +128,10 @@ abstract final class RecommendationTargets {
         RecommendationSurface.assistantChip => assistantChips,
       };
 
-  /// 項目對這位使用者的分數：符合且夠可信的特徵，可信度加總。
-  static double score(RecommendationTarget target, List<UserTrait> traits) {
-    double total = 0;
+  /// 項目對這位使用者的分數：符合且夠可信的特徵，可信度加總，再加上語意加分 [bonus]
+  /// （使用者關心的服務和這個項目有多接近，見 RecommendationEmbeddings）。刻意不推薦的項目不加分。
+  static double score(RecommendationTarget target, List<UserTrait> traits, {double Function(RecommendationTarget)? bonus}) {
+    double total = target.excludedReason == null ? (bonus?.call(target) ?? 0) : 0;
     for (final UserTrait trait in traits) {
       if (trait.confidence < TraitAggregator.confidentThreshold) continue;
       if (target.tags.contains((trait.dimension, trait.value))) total += trait.confidence;
@@ -145,6 +146,7 @@ abstract final class RecommendationTargets {
     List<T> items,
     List<UserTrait> traits, {
     required String Function(T item) titleOf,
+    double Function(RecommendationTarget)? bonus,
   }) {
     final List<RecommendationTarget> targets = of(surface);
     final List<(int, T, double)> scored = [
@@ -152,7 +154,10 @@ abstract final class RecommendationTargets {
         (
           i,
           items[i],
-          targets.where((t) => t.matches(titleOf(items[i]))).map((t) => score(t, traits)).fold(0.0, (a, b) => a + b),
+          targets
+              .where((t) => t.matches(titleOf(items[i])))
+              .map((t) => score(t, traits, bonus: bonus))
+              .fold(0.0, (a, b) => a + b),
         ),
     ]..sort((a, b) {
         final int byScore = b.$3.compareTo(a.$3);

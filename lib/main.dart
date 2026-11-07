@@ -45,7 +45,7 @@ Future<void> initServices() async {
   await _migrateOldPersona();
   await Get.putAsync<RecommendationService>(() async => await RecommendationService().init());
 
-  Get.put<SubscriptionService>(SubscriptionService());
+  await Get.putAsync<SubscriptionService>(() async => await SubscriptionService().init());
 }
 
 /// 舊版「我是誰」選擇頁已移除。之前選過「外籍人士」的使用者，把當時的翻譯語言轉成語言特徵，

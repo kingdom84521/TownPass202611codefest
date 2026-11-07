@@ -18,6 +18,9 @@ import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_vector_store.dart';
 import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/user_traits/recommendation_embeddings.dart';
+import 'package:town_pass/service/user_traits/recommendation_targets.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 
 /// batchEmbedContents 一次最多送幾筆。
 const int _batchSize = 50;
@@ -61,7 +64,73 @@ void main() {
     print('已寫入 ${RagVectorStore.assetPath}：${documents.length} 筆，'
         '${RagVectorStore.embeddingModel}／${RagVectorStore.embeddingDimensions} 維，清冊基準 ${corpus.sourceCommit}');
   }, timeout: const Timeout(Duration(minutes: 2)));
+
+  // 推薦用：各推薦項目的向量，以及「使用者關心的服務」的向量（從上面的辭庫向量複製，同一個模型）。
+  // 何時要重跑：recommendation_targets.dart 的項目、UserTraitRecorder 的服務對照表、或上面的辭庫改了之後。
+  test('build recommendation embeddings', () async {
+    final String apiKey = _apiKey();
+    final List<String> bannerTitles = _mockTitles('assets/mock_data/home_banner.json');
+    final List<String> activityTitles = _mockTitles('assets/mock_data/activity.json');
+
+    final List<RecommendationTarget> targets = [
+      for (final RecommendationSurface surface in RecommendationSurface.values) ...RecommendationTargets.of(surface),
+    ];
+    String textOf(RecommendationTarget target) => switch (target.surface) {
+          // 活動與大圖只存標題片段，用完整標題算向量比較準
+          RecommendationSurface.homeBanner =>
+            bannerTitles.firstWhere((title) => title.contains(target.match), orElse: () => target.match),
+          RecommendationSurface.homeActivity =>
+            activityTitles.firstWhere((title) => title.contains(target.match), orElse: () => target.match),
+          RecommendationSurface.subscriptionTopic => '訂閱主題：${target.match}',
+          RecommendationSurface.service => '服務：${target.match}',
+          RecommendationSurface.bill => '繳費項目：${target.match}',
+          RecommendationSurface.assistantChip => '想問：${target.match}',
+        };
+    final List<String> texts = [for (final target in targets) textOf(target)];
+    final List<List<double>> vectors = [];
+    for (int start = 0; start < targets.length; start += _batchSize) {
+      final int end = (start + _batchSize).clamp(0, targets.length);
+      vectors.addAll(await _embed(apiKey, [
+        for (int i = start; i < end; i++) 'title: ${targets[i].match} | text: ${texts[i]}',
+      ]));
+    }
+
+    final Map<String, dynamic> corpusVectors =
+        jsonDecode(File(RagVectorStore.assetPath).readAsStringSync()) as Map<String, dynamic>;
+    final Map<String, List<dynamic>> byTitle = {
+      for (final Map<String, dynamic> document in (corpusVectors['documents'] as List<dynamic>).cast<Map<String, dynamic>>())
+        document['title'] as String: document['vector'] as List<dynamic>,
+    };
+    final List<String> services = UserTraitRecorder.serviceTitles.where(byTitle.containsKey).toList();
+    expect(services, hasLength(UserTraitRecorder.serviceTitles.length), reason: '服務對照表裡每個服務都要在辭庫找得到');
+
+    File(RecommendationEmbeddings.assetPath).writeAsStringSync('${jsonEncode({
+          'model': RagVectorStore.embeddingModel,
+          'dimensions': RagVectorStore.embeddingDimensions,
+          'targetFormat': 'title: {match} | text: {完整標題或「訂閱主題：」等前綴}',
+          'generatedAt': DateTime.now().toUtc().toIso8601String(),
+          'targets': [
+            for (int i = 0; i < targets.length; i++)
+              {
+                'surface': targets[i].surface.name,
+                'match': targets[i].match,
+                'text': texts[i],
+                'vector': [for (final double value in vectors[i]) double.parse(value.toStringAsFixed(6))],
+              },
+          ],
+          'services': [
+            for (final String title in services) {'title': title, 'vector': byTitle[title]},
+          ],
+        })}\n');
+    // ignore: avoid_print
+    print('已寫入 ${RecommendationEmbeddings.assetPath}：${targets.length} 個推薦項目、${services.length} 個服務');
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }
+
+List<String> _mockTitles(String path) => [
+      for (final dynamic item in (jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>)['data'] as List<dynamic>)
+        (item as Map<String, dynamic>)['title'] as String? ?? '',
+    ];
 
 Future<List<List<double>>> _embed(String apiKey, List<String> texts) async {
   final Uri uri = Uri.parse(
