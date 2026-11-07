@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:town_pass/page/home/tour/home_tour.dart';
 import 'package:town_pass/page/main/main_view_controller.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
 import 'package:town_pass/util/tp_bottom_navigation_factory.dart';
@@ -18,6 +19,7 @@ class MainView extends GetView<MainViewController> {
         ),
       ),
       bottomNavigationBar: Container(
+        key: HomeTourKeys.bottomNavigation,
         decoration: const BoxDecoration(
           boxShadow: [
             BoxShadow(

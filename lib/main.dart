@@ -8,7 +8,10 @@ import 'package:town_pass/service/geo_locator_service.dart';
 import 'package:town_pass/service/notification_service.dart';
 import 'package:town_pass/service/package_service.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
+import 'package:town_pass/service/simple_mode_service.dart';
 import 'package:town_pass/service/subscription_service.dart';
+import 'package:town_pass/service/translation_service.dart';
+import 'package:town_pass/service/user_persona_service.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_route.dart';
 
@@ -36,6 +39,9 @@ Future<void> initServices() async {
   await Get.putAsync<SharedPreferencesService>(() async => await SharedPreferencesService().init());
   await Get.putAsync<GeoLocatorService>(() async => await GeoLocatorService().init());
   await Get.putAsync<NotificationService>(() async => await NotificationService().init());
+  await Get.putAsync<SimpleModeService>(() async => await SimpleModeService().init());
+  await Get.putAsync<TranslationService>(() async => await TranslationService().init());
+  await Get.putAsync<UserPersonaService>(() async => await UserPersonaService().init());
 
   Get.put<SubscriptionService>(SubscriptionService());
 }
@@ -68,7 +74,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      initialRoute: TPRoute.main,
+      // 尚未選擇使用方式時，先進入「我是誰」選擇頁
+      initialRoute: Get.find<UserPersonaService>().hasChosen ? TPRoute.main : TPRoute.personaSelect,
       onInit: () {
         NotificationService.requestPermission();
       },

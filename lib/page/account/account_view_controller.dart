@@ -4,6 +4,8 @@ import 'package:town_pass/bean/account.dart';
 import 'package:town_pass/service/account_service.dart';
 import 'package:town_pass/service/device_service.dart';
 import 'package:town_pass/service/package_service.dart';
+import 'package:town_pass/service/simple_mode_service.dart';
+import 'package:town_pass/util/tp_switch.dart';
 import 'package:town_pass/util/extension/datetime.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -19,6 +21,11 @@ class AccountViewController extends GetxController {
   final RxnString name = RxnString();
 
   final RxnString phoneNumber = RxnString();
+
+  late final TPSwitchController simpleModeSwitchController = TPSwitchController(
+    Get.find<SimpleModeService>().isEnabled.value,
+    onChanged: (enabled) => Get.find<SimpleModeService>().setEnabled(enabled),
+  );
 
   String get appVersion => 'TPS-V ${Get.find<PackageService>().packageInfo?.version}';
 

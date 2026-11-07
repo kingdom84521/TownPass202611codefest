@@ -4,6 +4,9 @@ import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/account/account_view_controller.dart';
 import 'package:town_pass/page/account/widget/account_app_bar.dart';
 import 'package:town_pass/page/account/widget/account_view_footer.dart';
+import 'package:town_pass/page/main/main_view_controller.dart';
+import 'package:town_pass/service/translation_service.dart';
+import 'package:town_pass/service/user_persona_service.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_route.dart';
 import 'package:town_pass/util/tp_setting_list.dart';
@@ -77,6 +80,34 @@ class AccountView extends GetView<AccountViewController> {
                       title: '訂閱',
                       content: '首頁>訂閱',
                       onTap: () {},
+                    ),
+                    TPSettingListTile.line(),
+                    TPSettingListTile.navigate(
+                      title: '翻譯語言',
+                      content: Get.find<TranslationService>().targetLanguage.value.label,
+                      onTap: () => Get.toNamed(TPRoute.translationLanguage),
+                    ),
+                    TPSettingListTile.space(),
+                    TPSettingListTile.navigate(
+                      title: '重新選擇使用方式',
+                      content: 'Change how to use',
+                      onTap: () => Get.toNamed(TPRoute.personaSelect),
+                    ),
+                    // 兒童模式可進入帳戶頁，回首頁會繞過家長 PIN，因此兒童不顯示
+                    if (Get.find<UserPersonaService>().persona.value != UserPersona.child) ...[
+                      TPSettingListTile.line(),
+                      TPSettingListTile.navigate(
+                        title: '再看一次首頁導覽',
+                        onTap: () {
+                          Get.until((route) => route.settings.name == TPRoute.main);
+                          Get.find<MainViewController>().showHomeTour();
+                        },
+                      ),
+                    ],
+                    TPSettingListTile.line(),
+                    TPSettingListTile.switchButton(
+                      title: '簡易模式（服務改為大區塊）',
+                      controller: controller.simpleModeSwitchController,
                     ),
                     TPSettingListTile.space(),
                     TPSettingListTile.navigate(

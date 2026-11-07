@@ -1,5 +1,9 @@
 import 'package:get/get.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
+import 'package:flutter/widgets.dart';
+import 'package:town_pass/page/home/tour/home_tour.dart';
+import 'package:town_pass/service/user_persona_service.dart';
+import 'package:town_pass/util/tp_route.dart';
 import 'package:town_pass/util/tp_bottom_navigation_factory.dart';
 
 class MainViewController extends GetxController {
@@ -9,4 +13,24 @@ class MainViewController extends GetxController {
       null => TPBottomNavigationFactory.defaultIndex,
     },
   );
+
+  @override
+  void onReady() {
+    super.onReady();
+    // 選了「兒童」的裝置，每次開啟 App 都直接進入兒童模式
+    if (Get.find<UserPersonaService>().persona.value == UserPersona.child) {
+      Get.toNamed(TPRoute.childMode);
+      return;
+    }
+    if (!HomeTour.isDone) {
+      showHomeTour();
+    }
+  }
+
+  /// 切到首頁分頁後顯示首頁導覽。
+  void showHomeTour() {
+    currentIndex.value = TPBottomNavigationFactory.defaultIndex;
+    // 等首頁版面完成後再顯示，才能取得按鈕位置
+    WidgetsBinding.instance.addPostFrameCallback((_) => HomeTour.show());
+  }
 }
