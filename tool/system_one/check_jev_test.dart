@@ -11,6 +11,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
+import 'package:town_pass/page/service_assistant/jev_service_selector.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_retriever.dart';
+import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.dart';
+import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
+import 'package:town_pass/page/service_assistant/service_search.dart';
 import 'package:town_pass/service/system_one/jev_client.dart';
 import 'package:town_pass/service/user_traits/jev_trait_classifier.dart';
 
@@ -31,6 +38,41 @@ void main() {
       print('「$query」→ ${await classifier.classify(query)}');
     }
   }, timeout: const Timeout(Duration(minutes: 1)));
+
+  test('Jev 從檢索結果挑出使用者要的服務', () async {
+    final ServiceInventoryCorpus corpus = ServiceInventoryCorpus.fromJson(
+      jsonDecode(File(ServiceInventoryCorpus.assetPath).readAsStringSync()) as Map<String, dynamic>,
+      catalog: ServiceSearch.catalog,
+    );
+    final RagRetriever retriever = RagRetriever(corpus.documents);
+    final JevServiceSelector selector =
+        JevServiceSelector(fallback: _NoFallback(), client: JevClient(apiKey: _apiKey()));
+    for (final String query in [
+      '我想借書',
+      '路燈壞了要找誰',
+      '颱風天家裡淹水',
+      '接到可疑電話說我中獎',
+      '想帶小孩去放電',
+      '停車場阿伯沒有穿內褲怎麼半',
+    ]) {
+      final List<RagHit> hits = retriever.retrieve(query, limit: 8);
+      final AiMatchResult result = await selector.generate(query, hits);
+      // ignore: avoid_print
+      print('「$query」候選 ${hits.length} 筆 → ${result.documents.map((d) => d.title).toList()}｜${result.reply}');
+    }
+  }, timeout: const Timeout(Duration(minutes: 1)));
+}
+
+class _NoFallback implements RagGenerator {
+  @override
+  bool get isEnabled => false;
+
+  @override
+  Future<AiMatchResult> generate(String query, List<RagHit> context) async =>
+      const AiMatchResult(entries: [], reply: '（Jev 失敗，退回 fallback）');
+
+  @override
+  Future<List<String>> rewriteQuery(String query) async => const [];
 }
 
 String _apiKey() {

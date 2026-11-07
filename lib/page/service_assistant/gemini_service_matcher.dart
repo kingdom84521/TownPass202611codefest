@@ -11,7 +11,16 @@ import 'package:town_pass/service/user_traits/user_trait.dart';
 
 /// AI 判斷的結果：挑出的服務，以及給使用者的一句話。
 class AiMatchResult {
-  const AiMatchResult({required this.entries, required this.reply, this.documents = const [], this.traits = const []});
+  const AiMatchResult({
+    required this.entries,
+    required this.reply,
+    this.documents = const [],
+    this.traits = const [],
+    this.decidedBy,
+  });
+
+  /// 由誰決定的（例如 `jev:jev-1.14.0`）；System One 決定時 [traits] 也已由它判斷，不必再問一次。
+  final String? decidedBy;
 
   final List<ServiceSearchEntry> entries;
   final String reply;

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:town_pass/service/system_one/jev_client.dart';
 import 'package:town_pass/service/user_traits/user_trait.dart';
 
@@ -56,8 +55,7 @@ class JevTraitClassifier {
   /// 判斷一句問句的特徵；失敗時丟出 [JevException]。
   Future<List<InferredTrait>> classify(String query) async => parse(await client.decide(state: query, questions: questions));
 
-  /// 把 Jev 的回答轉成特徵（測試可直接餵假回答）。
-  @visibleForTesting
+  /// 把 Jev 的回答轉成特徵（小幫手選服務時同一次請求也用這個；測試可直接餵假回答）。
   static List<InferredTrait> parse(JevAnswers answers) {
     final List<InferredTrait> traits = [];
     void addChoice(String key, TraitDimension dimension) {

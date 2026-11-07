@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
+import 'package:town_pass/page/service_assistant/jev_service_selector.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
@@ -55,7 +56,7 @@ class ServiceAssistantController extends GetxController {
     ServiceRag? rag,
     UserTraitRecorder? traits,
     JevTraitClassifier? systemOne,
-  })  : generator = generator ?? rag?.generator ?? GeminiServiceMatcher(),
+  })  : generator = generator ?? rag?.generator ?? JevServiceSelector(fallback: GeminiServiceMatcher()),
         traits = traits ?? UserTraitRecorder(),
         systemOne = systemOne ?? JevTraitClassifier(),
         _ragFuture = rag == null ? null : Future.value(rag);
@@ -114,8 +115,12 @@ class ServiceAssistantController extends GetxController {
 
   Future<ServiceRag> get _rag => _ragFuture ??= ServiceRag.load(
         generator: generator,
-        // GeminiServiceMatcher 同時負責生成與問句向量化
-        embedder: generator is QueryEmbedder ? generator as QueryEmbedder : null,
+        // 問句向量化由 Gemini 負責（Jev 選服務時沿用它的 fallback）
+        embedder: switch (generator) {
+          final JevServiceSelector selector => selector.embedder,
+          final QueryEmbedder embedder => embedder,
+          _ => null,
+        },
       );
 
   final TextEditingController inputController = TextEditingController();
@@ -161,11 +166,19 @@ class ServiceAssistantController extends GetxController {
       retrieval = await rag.retrieve(query);
       final AiMatchResult ai = await rag.generate(retrieval);
       answer = _ragReply(ai, retrieval, keywordResults);
-      _classifyTraits(
-        query,
-        fallback: ai.traits,
-        fallbackModel: generator is GeminiServiceMatcher ? (generator as GeminiServiceMatcher).model : null,
-      );
+      final String? decidedBy = ai.decidedBy;
+      if (decidedBy != null && decidedBy.startsWith(JevServiceSelector.decidedByPrefix)) {
+        // System One 選服務時已一併判斷特徵，不必再問一次
+        if (ai.traits.isNotEmpty) {
+          _recordTraits((recorder) => recorder.recordInferred(query, ai.traits, model: decidedBy));
+        }
+      } else {
+        _classifyTraits(
+          query,
+          fallback: ai.traits,
+          fallbackModel: generator is GeminiServiceMatcher ? (generator as GeminiServiceMatcher).model : null,
+        );
+      }
     } on AiMatchException catch (error) {
       // 詳細原因已由 GeminiServiceMatcher 寫進 log；這裡告訴使用者並退回關鍵字（或檢索）結果
       answer = _keywordReply(
