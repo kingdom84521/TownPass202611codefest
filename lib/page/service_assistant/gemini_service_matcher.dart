@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_vector_store.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 
@@ -37,7 +38,7 @@ class AiMatchException implements Exception {
 /// - 金鑰與模型由編譯參數帶入：flutter run --dart-define-from-file=gemini.env.json
 ///
 /// RAG 流程（[ServiceRag]）使用 [generate] 與 [rewriteQuery]；[match] 是把整份清單交給 AI 的舊做法，保留給相容與測試。
-class GeminiServiceMatcher implements RagGenerator {
+class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
   GeminiServiceMatcher({
     String? apiKey,
     String? model,
@@ -134,6 +135,57 @@ class GeminiServiceMatcher implements RagGenerator {
         .toList();
     _log('改寫 ${output.elapsedMs}ms，model=$model，關鍵詞=$keywords${kDebugMode ? '，問句「$query」' : ''}');
     return keywords;
+  }
+
+  /// RAG 的「語意檢索」：把問句轉成向量（與向量檔同一個模型、維度、格式）。
+  @override
+  String get embeddingModel => RagVectorStore.embeddingModel;
+
+  @override
+  Future<List<double>> embedQuery(String query) async {
+    if (!isEnabled) {
+      throw const AiMatchException('AI 小幫手尚未設定', '未設定 GEMINI_API_KEY');
+    }
+    final Stopwatch stopwatch = Stopwatch()..start();
+    final Uri uri = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$embeddingModel:embedContent');
+    http.Response response;
+    try {
+      response = await _client
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json', 'x-goog-api-key': _apiKey},
+            body: jsonEncode({
+              'content': {
+                'parts': [
+                  {'text': RagVectorStore.queryText(query)},
+                ],
+              },
+              'output_dimensionality': RagVectorStore.embeddingDimensions,
+            }),
+          )
+          .timeout(timeout);
+    } on TimeoutException {
+      throw _fail('AI 回應逾時', '向量化逾時 ${timeout.inSeconds}s，model=$embeddingModel');
+    } on Exception catch (error) {
+      throw _fail('目前連不上 AI 服務，請確認網路', '向量化連線失敗：$error');
+    }
+
+    final String body = utf8.decode(response.bodyBytes, allowMalformed: true);
+    if (response.statusCode != 200) {
+      throw _fail(
+        response.statusCode == 429 ? 'AI 使用量已達上限，請稍後再試' : 'AI 服務暫時無法使用',
+        '向量化 HTTP ${response.statusCode}，model=$embeddingModel，body=${_truncate(body)}',
+      );
+    }
+    try {
+      final List<dynamic> values =
+          ((jsonDecode(body) as Map<String, dynamic>)['embedding'] as Map<String, dynamic>)['values'] as List<dynamic>;
+      final List<double> vector = [for (final value in values) (value as num).toDouble()];
+      _log('向量化 ${stopwatch.elapsedMilliseconds}ms，model=$embeddingModel，維度=${vector.length}');
+      return vector;
+    } catch (_) {
+      throw _fail('AI 回覆格式錯誤', '向量化回應格式不符，body=${_truncate(body)}');
+    }
   }
 
   // ── 共用 ──────────────────────────────────────────────────────────────

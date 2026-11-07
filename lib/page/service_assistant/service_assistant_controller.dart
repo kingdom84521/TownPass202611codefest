@@ -46,7 +46,11 @@ class ServiceAssistantController extends GetxController {
   final RagGenerator generator;
   Future<ServiceRag>? _ragFuture;
 
-  Future<ServiceRag> get _rag => _ragFuture ??= ServiceRag.load(generator: generator);
+  Future<ServiceRag> get _rag => _ragFuture ??= ServiceRag.load(
+        generator: generator,
+        // GeminiServiceMatcher 同時負責生成與問句向量化
+        embedder: generator is QueryEmbedder ? generator as QueryEmbedder : null,
+      );
 
   final TextEditingController inputController = TextEditingController();
   final ScrollController scrollController = ScrollController();
@@ -111,9 +115,11 @@ class ServiceAssistantController extends GetxController {
       (retrieval?.hits ?? const <RagHit>[]).take(maxRelatedHits).map((hit) => hit.document.action).toList();
 
   String _groundingNote(RagRetrieval retrieval) {
-    final String rewritten =
-        retrieval.wasRewritten ? '（以「${retrieval.rewrittenKeywords.join('、')}」檢索）' : '';
-    return '依據服務清冊 ${retrieval.hits.length} 筆相關資料$rewritten';
+    final List<String> details = [
+      retrieval.usedVectors ? '關鍵字＋語意檢索' : '關鍵字檢索',
+      if (retrieval.wasRewritten) '改寫為「${retrieval.rewrittenKeywords.join('、')}」',
+    ];
+    return '依據服務清冊 ${retrieval.hits.length} 筆相關資料（${details.join('，')}）';
   }
 
   ChatMessage _ragReply(AiMatchResult ai, RagRetrieval retrieval, List<ServiceSearchEntry> keywordResults) {

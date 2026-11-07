@@ -67,7 +67,7 @@ class RagRetriever {
         final double idf = math.log(1 + (count - df + 0.5) / (df + 0.5));
         score += idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * _lengths[i] / _averageLength));
       }
-      if (score > 0) hits.add(RagHit(documents[i], score));
+      if (score > 0) hits.add(RagHit(documents[i], score, bm25: score));
     }
     hits.sort((a, c) => c.score.compareTo(a.score));
     return hits.take(limit).toList();

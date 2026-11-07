@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_retriever.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_vector_store.dart';
 import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_assistant_controller.dart';
@@ -47,6 +48,29 @@ class _FakeGenerator implements RagGenerator {
     rewriteCalls++;
     if (rewriteError != null) throw rewriteError!;
     return rewrite;
+  }
+}
+
+/// 不打網路的問句向量化：回傳指定向量或錯誤。
+class _FakeEmbedder implements QueryEmbedder {
+  _FakeEmbedder({this.vector = const [], this.error, this.model = RagVectorStore.embeddingModel});
+
+  final List<double> vector;
+  final AiMatchException? error;
+  final String model;
+  int calls = 0;
+
+  @override
+  bool get isEnabled => true;
+
+  @override
+  String get embeddingModel => model;
+
+  @override
+  Future<List<double>> embedQuery(String query) async {
+    calls++;
+    if (error != null) throw error!;
+    return vector;
   }
 }
 
@@ -201,6 +225,129 @@ void main() {
     });
   });
 
+  group('RagVectorStore（向量檔）', () {
+    late RagVectorStore store;
+    setUpAll(() async => store = (await RagVectorStore.load(documents: corpus.documents))!);
+
+    test('has a fresh vector for every document', () {
+      expect(store.model, RagVectorStore.embeddingModel);
+      expect(store.dimensions, RagVectorStore.embeddingDimensions);
+      expect(store.size, corpus.documents.length);
+      expect(store.staleIds, isEmpty, reason: '辭庫改了要重跑 tool/rag/build_embeddings_test.dart');
+    });
+
+    test('a document vector finds itself first with cosine ≈ 1', () {
+      final List<RagHit> hits = store.search(store.vectorOf('service:library')!, limit: 3);
+      expect(hits.first.document.title, '圖書借閱');
+      expect(hits.first.cosine, closeTo(1, 1e-3));
+      expect(hits.first.score >= hits[1].score, isTrue);
+    });
+
+    test('wrong dimensions return nothing', () {
+      expect(store.search([1, 0, 0]), isEmpty);
+    });
+
+    test('changed documents are detected as stale and skipped', () {
+      final Map<String, Object> json = {
+        'model': RagVectorStore.embeddingModel,
+        'dimensions': 2,
+        'documents': [
+          {'id': 'service:library', 'fingerprint': doc('圖書借閱').fingerprint, 'vector': [1.0, 0.0]},
+          {'id': 'service:zoo', 'fingerprint': 'deadbeef', 'vector': [0.0, 1.0]},
+        ],
+      };
+      final RagVectorStore small = RagVectorStore.fromJson(json, documents: corpus.documents);
+      expect(small.size, 1);
+      expect(small.staleIds, contains('service:zoo'));
+      expect(small.staleIds, contains('service:police'), reason: '沒有向量的文件也算過期');
+      expect(small.search([0.0, 1.0]).single.document.title, '圖書借閱');
+    });
+  });
+
+  group('ServiceRag 混合檢索（BM25＋向量，RRF）', () {
+    late RagVectorStore store;
+    setUpAll(() async => store = (await RagVectorStore.load(documents: corpus.documents))!);
+
+    test('RRF ranks documents found by both paths first and keeps raw scores', () {
+      final List<RagHit> fused = ServiceRag.fuse(
+        [RagHit(doc('找地點'), 16, bm25: 16), RagHit(doc('親子館'), 5, bm25: 5)],
+        [RagHit(doc('親子館'), 0.71, cosine: 0.71), RagHit(doc('愛遊動物園'), 0.66, cosine: 0.66)],
+      );
+      expect(fused.first.document.title, '親子館', reason: '兩路都有命中');
+      expect(fused.first.bm25, 5);
+      expect(fused.first.cosine, 0.71);
+      expect(fused.map((h) => h.document.title), ['親子館', '找地點', '愛遊動物園']);
+    });
+
+    test('vector path finds what keywords cannot, without rewriting', () async {
+      final _FakeGenerator generator = _FakeGenerator(rewrite: ['不該被呼叫']);
+      final _FakeEmbedder embedder = _FakeEmbedder(vector: store.vectorOf('service:zoo')!);
+      final ServiceRag rag = ServiceRag(corpus: corpus, generator: generator, vectors: store, embedder: embedder);
+
+      final RagRetrieval retrieval = await rag.retrieve('where can I see pandas');
+
+      expect(embedder.calls, 1);
+      expect(retrieval.usedVectors, isTrue);
+      expect(retrieval.hits.first.document.title, '愛遊動物園');
+      expect(generator.rewriteCalls, 0, reason: '語意檢索夠強就不改寫');
+    });
+
+    test('embedding failure falls back to BM25 only', () async {
+      final _FakeEmbedder embedder = _FakeEmbedder(error: const AiMatchException('AI 回應逾時', 'timeout'));
+      final ServiceRag rag =
+          ServiceRag(corpus: corpus, generator: _FakeGenerator(), vectors: store, embedder: embedder);
+
+      final RagRetrieval retrieval = await rag.retrieve('我被詐騙了');
+
+      expect(retrieval.usedVectors, isFalse);
+      expect(retrieval.hits.first.document.title, '165 反詐騙專線');
+    });
+
+    test('a different embedding model disables the vector path', () async {
+      final _FakeEmbedder embedder = _FakeEmbedder(vector: store.vectorOf('service:zoo')!, model: 'other-model');
+      final ServiceRag rag =
+          ServiceRag(corpus: corpus, generator: _FakeGenerator(), vectors: store, embedder: embedder);
+
+      expect(rag.vectorSearchEnabled, isFalse);
+      await rag.retrieve('我被詐騙了');
+      expect(embedder.calls, 0);
+    });
+
+    test('rewrite only happens when both paths are weak', () async {
+      // 與所有文件幾乎正交的向量：cosine 很低
+      final List<double> unrelated = List<double>.filled(RagVectorStore.embeddingDimensions, 0)..[0] = 1;
+      final _FakeGenerator generator = _FakeGenerator(rewrite: ['天氣']);
+      final ServiceRag rag = ServiceRag(
+        corpus: corpus,
+        generator: generator,
+        vectors: store,
+        embedder: _FakeEmbedder(vector: unrelated),
+      );
+
+      final RagRetrieval retrieval = await rag.retrieve('今天天氣如何');
+
+      expect(retrieval.hits.first.cosine ?? 0, lessThan(ServiceRag.weakCosine));
+      expect(generator.rewriteCalls, 1);
+    });
+
+    test('controller grounding note mentions semantic retrieval', () async {
+      final _FakeGenerator generator = _FakeGenerator(pick: ['愛遊動物園'], reply: '可以去動物園');
+      final ServiceAssistantController controller = ServiceAssistantController(
+        rag: ServiceRag(
+          corpus: corpus,
+          generator: generator,
+          vectors: store,
+          embedder: _FakeEmbedder(vector: store.vectorOf('service:zoo')!),
+        ),
+      );
+
+      await controller.send('where can I see pandas');
+
+      expect(controller.messages.last.results.single.title, '愛遊動物園');
+      expect(controller.messages.last.groundingNote, contains('關鍵字＋語意檢索'));
+    });
+  });
+
   group('ServiceAssistantController with RAG', () {
     ServiceAssistantController controllerWith(_FakeGenerator generator) =>
         ServiceAssistantController(rag: ServiceRag(corpus: corpus, generator: generator));
@@ -238,7 +385,8 @@ void main() {
       await controller.send('Someone scammed me on the phone');
 
       expect(controller.messages.last.results.single.title, '165 反詐騙專線');
-      expect(controller.messages.last.groundingNote, contains('以「詐騙」檢索'));
+      expect(controller.messages.last.groundingNote, contains('改寫為「詐騙」'));
+      expect(controller.messages.last.groundingNote, contains('關鍵字檢索'), reason: '沒有向量時只標關鍵字');
     });
 
     test('LLM failure falls back to keyword results with a note', () async {

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_vector_store.dart';
 import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 
@@ -180,6 +181,38 @@ void main() {
         (_) async => _jsonResponse(_geminiBody({'matches': ['圖書借閱', '警政服務'], 'reply': ''}), 200),
       ).generate('我被詐騙了', hitsFor(['165 反詐騙專線', '警政服務']));
       expect(result.entries.map((e) => e.title), ['警政服務']);
+    });
+
+    test('embedQuery uses the vector-file model, query prefix and dimensions', () async {
+      late http.Request sent;
+      final List<double> vector = await _matcher((request) async {
+        sent = request;
+        return _jsonResponse(
+          jsonEncode({
+            'embedding': {'values': [0.1, 0.2, 0.3]},
+          }),
+          200,
+        );
+      }).embedQuery('where can I see pandas');
+
+      expect(vector, [0.1, 0.2, 0.3]);
+      expect(sent.url.toString(),
+          'https://generativelanguage.googleapis.com/v1beta/models/${RagVectorStore.embeddingModel}:embedContent');
+      expect(sent.headers['x-goog-api-key'], 'test-key');
+      final Map<String, dynamic> body = jsonDecode(sent.body) as Map<String, dynamic>;
+      expect(body['content']['parts'][0]['text'], 'task: search result | query: where can I see pandas');
+      expect(body['output_dimensionality'], RagVectorStore.embeddingDimensions);
+    });
+
+    test('embedQuery errors become AiMatchException', () async {
+      await expectLater(
+        _matcher((_) async => http.Response('{}', 500)).embedQuery('x'),
+        throwsA(isA<AiMatchException>().having((e) => e.detail, 'detail', contains('向量化 HTTP 500'))),
+      );
+      await expectLater(
+        _matcher((_) async => _jsonResponse('{"nope":1}', 200)).embedQuery('x'),
+        throwsA(isA<AiMatchException>().having((e) => e.userMessage, 'userMessage', 'AI 回覆格式錯誤')),
+      );
     });
 
     test('rewriteQuery returns deduplicated, trimmed keywords', () async {
