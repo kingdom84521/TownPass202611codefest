@@ -4,6 +4,7 @@ import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/user_traits/user_trait_recorder.dart';
 
 enum ChatSender { user, assistant }
 
@@ -14,10 +15,23 @@ class ChatMessage {
     this.results = const [],
     this.suggestions = const [],
     this.groundingNote,
+    this.query,
   });
 
   final ChatSender sender;
   final String text;
+
+  /// 這則回覆是回答哪一句問句；使用者點開服務時，用來把點擊記成該問題的佐證。
+  final String? query;
+
+  ChatMessage withQuery(String query) => ChatMessage(
+        sender: sender,
+        text: text,
+        results: results,
+        suggestions: suggestions,
+        groundingNote: groundingNote,
+        query: query,
+      );
 
   /// 小幫手找到的服務，以按鈕呈現。
   final List<ServiceSearchEntry> results;
@@ -31,9 +45,27 @@ class ChatMessage {
 
 class ServiceAssistantController extends GetxController {
   /// [generator] 預設為 Gemini；[rag] 可直接注入（測試用），否則第一次需要時從辭庫載入。
-  ServiceAssistantController({RagGenerator? generator, ServiceRag? rag})
+  /// [traits] 記錄從提問推論的使用者特徵（本機 SQLite），預設寫入 App 共用的資料庫。
+  ServiceAssistantController({RagGenerator? generator, ServiceRag? rag, UserTraitRecorder? traits})
       : generator = generator ?? rag?.generator ?? GeminiServiceMatcher(),
+        traits = traits ?? UserTraitRecorder(),
         _ragFuture = rag == null ? null : Future.value(rag);
+
+  final UserTraitRecorder traits;
+
+  /// 最近一次特徵寫入；寫入不阻擋對話，測試可 await 這個值確認寫完。
+  Future<void> lastTraitRecord = Future.value();
+
+  void _recordTraits(Future<void> Function(UserTraitRecorder recorder) record) {
+    lastTraitRecord = record(traits).catchError((Object error) => debugPrint('[使用者特徵] 失敗：$error'));
+  }
+
+  /// 使用者點開小幫手推薦的服務：先記錄（點擊是比文字更可靠的佐證），再開啟。
+  void openResult(ChatMessage message, ServiceSearchEntry entry) {
+    final String? query = message.query;
+    if (query != null) _recordTraits((recorder) => recorder.recordOpened(query, entry));
+    entry.open();
+  }
 
   static const List<String> defaultSuggestions = ['我想借書', '附近有什麼', '要看醫生', '繳水費', '我要報案'];
 
@@ -78,7 +110,10 @@ class ServiceAssistantController extends GetxController {
     final bool confident = ServiceSearch.topScore(query) >= confidentScore;
 
     if (confident || !generator.isEnabled) {
-      _reply(_keywordReply(keywordResults));
+      if (keywordResults.isNotEmpty) {
+        _recordTraits((recorder) => recorder.recordKeywordMatch(query, keywordResults.first));
+      }
+      _reply(_keywordReply(keywordResults).withQuery(query));
       return;
     }
 
@@ -91,6 +126,10 @@ class ServiceAssistantController extends GetxController {
       retrieval = await rag.retrieve(query);
       final AiMatchResult ai = await rag.generate(retrieval);
       answer = _ragReply(ai, retrieval, keywordResults);
+      if (ai.traits.isNotEmpty) {
+        final String? model = generator is GeminiServiceMatcher ? (generator as GeminiServiceMatcher).model : null;
+        _recordTraits((recorder) => recorder.recordInferred(query, ai.traits, model: model));
+      }
     } on AiMatchException catch (error) {
       // 詳細原因已由 GeminiServiceMatcher 寫進 log；這裡告訴使用者並退回關鍵字（或檢索）結果
       answer = _keywordReply(
@@ -108,7 +147,7 @@ class ServiceAssistantController extends GetxController {
 
     if (isClosed) return;
     messages.removeLast(); // 移除「讓我想想」
-    _reply(answer);
+    _reply(answer.withQuery(query));
   }
 
   List<ServiceSearchEntry> _relatedEntries(RagRetrieval? retrieval) =>

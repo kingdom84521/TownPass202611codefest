@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/page/service_assistant/service_assistant_controller.dart';
+import 'package:town_pass/page/service_assistant/service_search.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_service_block.dart';
@@ -28,6 +29,7 @@ class ServiceAssistantView extends GetView<ServiceAssistantController> {
                   itemBuilder: (_, index) => _MessageItem(
                     message: controller.messages[index],
                     onSuggestionTap: controller.send,
+                    onResultTap: controller.openResult,
                   ),
                 ),
               ),
@@ -44,10 +46,11 @@ class ServiceAssistantView extends GetView<ServiceAssistantController> {
 }
 
 class _MessageItem extends StatelessWidget {
-  const _MessageItem({required this.message, required this.onSuggestionTap});
+  const _MessageItem({required this.message, required this.onSuggestionTap, required this.onResultTap});
 
   final ChatMessage message;
   final ValueChanged<String> onSuggestionTap;
+  final void Function(ChatMessage message, ServiceSearchEntry entry) onResultTap;
 
   bool get _isUser => message.sender == ChatSender.user;
 
@@ -85,7 +88,7 @@ class _MessageItem extends StatelessWidget {
               icon: result.icon,
               title: result.title,
               description: result.description,
-              onTap: result.open,
+              onTap: () => onResultTap(message, result),
             ),
             const SizedBox(height: 8),
           ],

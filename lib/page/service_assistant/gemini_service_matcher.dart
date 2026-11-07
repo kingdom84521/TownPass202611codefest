@@ -7,16 +7,20 @@ import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
 import 'package:town_pass/page/service_assistant/rag/rag_vector_store.dart';
 import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
+import 'package:town_pass/service/user_traits/user_trait.dart';
 
 /// AI 判斷的結果：挑出的服務，以及給使用者的一句話。
 class AiMatchResult {
-  const AiMatchResult({required this.entries, required this.reply, this.documents = const []});
+  const AiMatchResult({required this.entries, required this.reply, this.documents = const [], this.traits = const []});
 
   final List<ServiceSearchEntry> entries;
   final String reply;
 
   /// RAG 模式下，AI 選中的辭庫文件（與 [entries] 一一對應）。
   final List<RagDocument> documents;
+
+  /// RAG 模式下，AI 從問句推論的非敏感使用者特徵（已依 [TraitDimension] 驗證）。
+  final List<InferredTrait> traits;
 }
 
 /// AI 判斷失敗。[userMessage] 給使用者看，[detail] 寫進 log 供追查。
@@ -84,6 +88,7 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
   @override
   Future<AiMatchResult> generate(String query, List<RagHit> context) async {
     final Map<String, RagDocument> byTitle = {for (final hit in context) hit.document.title: hit.document};
+    final Map<String, Object> schema = _matchSchema(byTitle.keys.toList(), traits: _traitSchema);
     final _Output output = await _call(
       query: query,
       systemText: _rules(
@@ -91,18 +96,83 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
                 '只能根據這些資料回答，請挑出最符合的服務',
             listName: '參考資料（名稱｜說明｜狀態）',
           ) +
-          context.map((hit) => hit.document.toContextLine()).join('\n'),
-      schema: _matchSchema(byTitle.keys.toList()),
+          context.map((hit) => hit.document.toContextLine()).join('\n') +
+          _traitRules,
+      schema: schema,
     );
     final List<RagDocument> documents =
         _validTitles(output.json, byTitle.keys.toSet()).map((title) => byTitle[title]!).toList();
+    final List<InferredTrait> traits = parseTraits(output.json['traits']);
     final AiMatchResult result = AiMatchResult(
       entries: documents.map((document) => document.action).toList(),
       reply: (output.json['reply'] as String? ?? '').trim(),
       documents: documents,
+      traits: traits,
     );
     _logSuccess(output, query, documents.map((d) => d.id).toList(), contextSize: context.length);
+    if (traits.isNotEmpty) _log('推論特徵：$traits');
     return result;
+  }
+
+  // ── 使用者特徵（與生成同一次呼叫，不另外打 API）──────────────────────────
+
+  /// LLM 自評可信度低於此值的特徵直接丟棄。
+  static const double minTraitConfidence = 0.3;
+
+  static const String _traitRules = '\n\n另外，請在 traits 推測提問者的特徵，供 App 之後推薦功能：\n'
+      '- 只根據這一句問句本身，沒有線索的項目不要填，不要猜。\n'
+      '- language：問句使用的語言（zh 中文、en 英文、ja 日文、vi 越南文）。\n'
+      '- relation：resident 住在台北、commuter 在台北上班上學、visitor 來台北旅遊、new_resident 從外國來台定居。\n'
+      '- transport：car_scooter 開車或騎機車、public_transit 捷運公車、walk_bike 走路或腳踏車。\n'
+      '- caregiverOf：家中需要提問者照顧的人（elder 長輩、child 小孩）。\n'
+      '- interests：提問者關心的服務類型。\n'
+      '- confidence 介於 0 到 1：明確說出約 0.9，強烈暗示約 0.6，弱線索約 0.3；低於 0.3 就不要輸出。\n'
+      '- 絕對不要推測健康或疾病、犯罪受害（詐騙、家暴、報案）、財務或社福身分、宗教、政治、族群、性別、年齡。';
+
+  static Map<String, Object> _traitItem(TraitDimension dimension) => {
+        'type': 'object',
+        'properties': {
+          'value': {'type': 'string', 'enum': dimension.allowedValues},
+          'confidence': {'type': 'number'},
+        },
+        'required': ['value', 'confidence'],
+      };
+
+  static final Map<String, Object> _traitSchema = {
+    'type': 'object',
+    'properties': {
+      'language': _traitItem(TraitDimension.language),
+      'relation': _traitItem(TraitDimension.relation),
+      'transport': _traitItem(TraitDimension.transport),
+      'caregiverOf': {'type': 'array', 'items': _traitItem(TraitDimension.caregiverOf)},
+      'interests': {'type': 'array', 'items': _traitItem(TraitDimension.interest)},
+    },
+  };
+
+  /// 解析並驗證 LLM 回傳的 traits：不在允許清單的值、可信度過低或格式不符的一律丟棄。
+  @visibleForTesting
+  static List<InferredTrait> parseTraits(Object? raw) {
+    if (raw is! Map<String, dynamic>) return const [];
+    final List<InferredTrait> traits = [];
+    void add(TraitDimension dimension, Object? item) {
+      if (item is! Map<String, dynamic>) return;
+      final Object? value = item['value'];
+      final Object? confidence = item['confidence'];
+      if (value is! String || confidence is! num || !dimension.allows(value)) return;
+      if (confidence < minTraitConfidence) return;
+      traits.add(InferredTrait(dimension, value, confidence.toDouble().clamp(0.0, 1.0)));
+    }
+
+    add(TraitDimension.language, raw['language']);
+    add(TraitDimension.relation, raw['relation']);
+    add(TraitDimension.transport, raw['transport']);
+    for (final Object? item in raw['caregiverOf'] as List<dynamic>? ?? const []) {
+      add(TraitDimension.caregiverOf, item);
+    }
+    for (final Object? item in raw['interests'] as List<dynamic>? ?? const []) {
+      add(TraitDimension.interest, item);
+    }
+    return traits;
   }
 
   /// RAG 的「查詢改寫」：檢索不到或太弱時，把問句改寫成辭庫裡常見的繁體中文關鍵詞再檢索一次。
@@ -204,14 +274,15 @@ class GeminiServiceMatcher implements RagGenerator, QueryEmbedder {
       '找不到時說明 App 目前沒有這項服務。你只負責推薦服務，不要承諾會處理、派人或回覆結果。\n\n'
       '$listName：\n';
 
-  Map<String, Object> _matchSchema(List<String> titles) => {
+  Map<String, Object> _matchSchema(List<String> titles, {Map<String, Object>? traits}) => {
         'type': 'object',
-        'properties': {
+        'properties': <String, Object>{
           'matches': {
             'type': 'array',
             'items': {'type': 'string', 'enum': titles},
           },
           'reply': {'type': 'string'},
+          'traits': ?traits,
         },
         'required': ['matches', 'reply'],
       };
