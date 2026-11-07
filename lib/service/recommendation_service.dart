@@ -167,6 +167,20 @@ class RecommendationService extends GetxService {
     return (semanticBonuses[key] ?? 0) + (systemOne == null ? 0 : JevRecommendationRanker.bonusOf(systemOne));
   }
 
+  /// 排序依據（特徵、語意、System One、拒絕）有變時呼叫 [onChange]；短時間內多次變動只呼叫一次。
+  /// 不是用 Obx 的畫面（例如先載入資料再排序的首頁大圖、活動）用這個重排。記得在 onClose 呼叫 dispose。
+  Worker listenRankingChanges(VoidCallback onChange) => debounce<int>(
+        _rankingVersion,
+        (_) => onChange(),
+        time: const Duration(milliseconds: 100),
+      );
+
+  late final RxInt _rankingVersion = () {
+    final RxInt version = 0.obs;
+    everAll([traits, semanticBonuses, systemOneScores, rejected], (_) => version.value++);
+    return version;
+  }();
+
   /// 依特徵與語意相似度重新排序 [items]（分數相同維持原順序）。
   List<T> rank<T>(RecommendationSurface surface, List<T> items, {required String Function(T item) titleOf}) =>
       RecommendationTargets.rank(surface, items, traits, titleOf: titleOf, scoreOf: scoreOf);
