@@ -21,6 +21,42 @@ Future<void> openServiceOrComingSoon({
   );
 }
 
+/// 與首頁「市政新聞」「1999」卡片相同的外框：白底、圓角 6、淡邊框與陰影。
+const ShapeBorder _cardShape = RoundedRectangleBorder(
+  side: BorderSide(width: 1, color: TPColors.grayscale50),
+  borderRadius: BorderRadius.all(Radius.circular(6)),
+);
+const List<BoxShadow> _cardShadows = [
+  BoxShadow(color: TPColors.grayscale100, blurRadius: 8, offset: Offset(0, 1)),
+];
+
+/// 可點擊的卡片外框，讓大區塊與 App 其他卡片一致。
+class _TappableCard extends StatelessWidget {
+  const _TappableCard({required this.onTap, required this.padding, required this.child});
+
+  final VoidCallback onTap;
+  final EdgeInsets padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const ShapeDecoration(shape: _cardShape, shadows: _cardShadows),
+      child: Material(
+        color: TPColors.white,
+        shape: _cardShape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          highlightColor: TPColors.primary50,
+          splashColor: TPColors.primary50,
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
+    );
+  }
+}
+
 /// 大區塊服務按鈕，用於 2x2 網格（簡易模式、兒童模式）。
 class TPServiceBlock extends StatelessWidget {
   const TPServiceBlock({
@@ -29,8 +65,7 @@ class TPServiceBlock extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.description,
-    this.backgroundColor = TPColors.white,
-    this.borderColor = TPColors.grayscale100,
+    this.titleColor = TPColors.grayscale800,
     this.iconSize = 48,
     this.descriptionMaxLines = 2,
   });
@@ -39,8 +74,9 @@ class TPServiceBlock extends StatelessWidget {
   final String? description;
   final Widget? icon;
   final VoidCallback onTap;
-  final Color backgroundColor;
-  final Color borderColor;
+
+  /// 標題顏色；只有語意上需要強調時才改（例如緊急求救用紅色）。
+  final Color titleColor;
   final double iconSize;
   final int descriptionMaxLines;
 
@@ -50,46 +86,36 @@ class TPServiceBlock extends StatelessWidget {
       button: true,
       label: [title, if (description != null) description].join('，'),
       excludeSemantics: true,
-      child: Material(
-        color: backgroundColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: borderColor, width: 2),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (icon != null) ...[
-                  SizedBox.square(dimension: iconSize, child: icon),
-                  const SizedBox(height: 12),
-                ],
-                TPText(
-                  title,
-                  style: TPTextStyles.h3SemiBold,
-                  color: TPColors.grayscale800,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (description != null) ...[
-                  const SizedBox(height: 4),
-                  TPText(
-                    description,
-                    style: TPTextStyles.bodyRegular,
-                    color: TPColors.grayscale600,
-                    textAlign: TextAlign.center,
-                    maxLines: descriptionMaxLines,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
+      child: _TappableCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              SizedBox.square(dimension: iconSize, child: icon),
+              const SizedBox(height: 12),
+            ],
+            TPText(
+              title,
+              style: TPTextStyles.h3SemiBold,
+              color: titleColor,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
+            if (description != null) ...[
+              const SizedBox(height: 4),
+              TPText(
+                description,
+                style: TPTextStyles.bodyRegular,
+                color: TPColors.grayscale600,
+                textAlign: TextAlign.center,
+                maxLines: descriptionMaxLines,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -145,38 +171,28 @@ class TPServiceListBlock extends StatelessWidget {
       button: true,
       label: [title, if (description != null) description].join('，'),
       excludeSemantics: true,
-      child: Material(
-        color: TPColors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: TPColors.grayscale100, width: 2),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  SizedBox.square(dimension: 40, child: icon),
-                  const SizedBox(width: 16),
+      child: _TappableCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              SizedBox.square(dimension: 40, child: icon),
+              const SizedBox(width: 16),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TPText(title, style: TPTextStyles.h3SemiBold, color: TPColors.grayscale800),
+                  if (description != null)
+                    TPText(description, style: TPTextStyles.bodyRegular, color: TPColors.grayscale600),
                 ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TPText(title, style: TPTextStyles.h3SemiBold, color: TPColors.grayscale800),
-                      if (description != null)
-                        TPText(description, style: TPTextStyles.bodyRegular, color: TPColors.grayscale600),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Assets.svg.iconExpand.svg(),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Assets.svg.iconExpand.svg(),
+          ],
         ),
       ),
     );

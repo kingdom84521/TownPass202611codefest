@@ -47,6 +47,8 @@ class HomeView extends StatelessWidget {
         onPressed: () => Get.toNamed(TPRoute.serviceAssistant),
         backgroundColor: TPColors.primary500,
         foregroundColor: TPColors.white,
+        // 與 TPButton 相同的圓角
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         icon: const Icon(Icons.chat_bubble_outline_rounded),
         label: const TPText('找服務', style: TPTextStyles.h3SemiBold, color: TPColors.white),
         tooltip: '服務小幫手',

@@ -2,9 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
 import 'package:town_pass/service/translation_service.dart';
 import 'package:town_pass/service/user_persona_service.dart';
+import 'package:town_pass/util/tp_button.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_text.dart';
 
@@ -21,9 +23,9 @@ abstract final class HomeTourKeys {
 enum _TourLanguage { zh, en, ja, vi }
 
 class _TourStep {
-  const _TourStep({required this.emoji, required this.text, required this.targetRect});
+  const _TourStep({required this.icon, required this.text, required this.targetRect});
 
-  final String emoji;
+  final SvgGenImage icon;
   final Map<_TourLanguage, String> text;
 
   /// 目標在螢幕上的位置；找不到（元件未顯示）時回傳 null，該步驟會略過。
@@ -92,13 +94,13 @@ abstract final class HomeTour {
       // 「找服務」目前只能比對中文，外籍人士先不介紹
       if (persona != UserPersona.foreign)
         _TourStep(
-          emoji: '💬',
+          icon: Assets.svg.iconTalk,
           text: const {_TourLanguage.zh: '不知道去哪找？\n點這裡，打字說出你想做的事，就能找到服務。'},
           targetRect: () => _rectOf(HomeTourKeys.assistantButton),
         ),
       if (persona == UserPersona.simple)
         _TourStep(
-          emoji: '🧩',
+          icon: Assets.svg.iconTabbarServiceSelect,
           text: const {_TourLanguage.zh: '所有服務都在「服務」這裡，\n已經換成大按鈕，比較好找。'},
           targetRect: () {
             final Rect? bar = _rectOf(HomeTourKeys.bottomNavigation);
@@ -106,7 +108,7 @@ abstract final class HomeTour {
           },
         ),
       _TourStep(
-        emoji: '🧒',
+        icon: Assets.svg.iconFamilyCenter,
         text: const {
           _TourLanguage.zh: '兒童模式：給小朋友用的安全畫面，\n要離開需要家長密碼。',
           _TourLanguage.en: 'Kids mode: a safe screen for children.\nA parent PIN is needed to leave.',
@@ -116,7 +118,7 @@ abstract final class HomeTour {
         targetRect: () => _rectOf(HomeTourKeys.childModeButton),
       ),
       _TourStep(
-        emoji: '👤',
+        icon: Assets.svg.iconPerson,
         text: const {
           _TourLanguage.zh: '帳戶：可以開關簡易模式、\n改翻譯語言，或重新選擇使用方式。',
           _TourLanguage.en: 'Account: messages are translated automatically.\nChange the language or how you use the app here.',
@@ -203,7 +205,7 @@ class _TourOverlayState extends State<_TourOverlay> {
             top: bubbleAbove ? null : math.min(target.bottom + 12, screen.height - 260),
             bottom: bubbleAbove ? math.max(screen.height - target.top + 12, safeArea.bottom + 16) : null,
             child: _Bubble(
-              emoji: step.emoji,
+              icon: step.icon,
               text: text,
               current: _index,
               total: widget.steps.length,
@@ -224,16 +226,18 @@ class _SpotlightPainter extends CustomPainter {
 
   final Rect target;
 
+  static const Radius _radius = Radius.circular(10);
+
   @override
   void paint(Canvas canvas, Size size) {
     final Path path = Path.combine(
       PathOperation.difference,
       Path()..addRect(Offset.zero & size),
-      Path()..addRRect(RRect.fromRectAndRadius(target, const Radius.circular(16))),
+      Path()..addRRect(RRect.fromRectAndRadius(target, _radius)),
     );
-    canvas.drawPath(path, Paint()..color = const Color(0xB3000000));
+    canvas.drawPath(path, Paint()..color = TPColors.grayscale950.withValues(alpha: 0.7));
     canvas.drawRRect(
-      RRect.fromRectAndRadius(target, const Radius.circular(16)),
+      RRect.fromRectAndRadius(target, _radius),
       Paint()
         ..color = TPColors.secondary500
         ..style = PaintingStyle.stroke
@@ -247,7 +251,7 @@ class _SpotlightPainter extends CustomPainter {
 
 class _Bubble extends StatelessWidget {
   const _Bubble({
-    required this.emoji,
+    required this.icon,
     required this.text,
     required this.current,
     required this.total,
@@ -257,7 +261,7 @@ class _Bubble extends StatelessWidget {
     required this.onSkip,
   });
 
-  final String emoji;
+  final SvgGenImage icon;
   final String text;
   final int current;
   final int total;
@@ -270,9 +274,10 @@ class _Bubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
+      // 與 TPDialog 相同的圓角
       decoration: BoxDecoration(
         color: TPColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -280,7 +285,7 @@ class _Bubble extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ExcludeSemantics(child: Text(emoji, style: const TextStyle(fontSize: 40, height: 1.1))),
+              ExcludeSemantics(child: icon.svg(width: 40, height: 40)),
               const SizedBox(width: 12),
               Expanded(
                 child: TPText(text, style: TPTextStyles.h3Regular, color: TPColors.grayscale900),
@@ -308,15 +313,7 @@ class _Bubble extends StatelessWidget {
                   child: TPText(skipText, style: TPTextStyles.h3Regular, color: TPColors.grayscale500),
                 ),
               const SizedBox(width: 4),
-              FilledButton(
-                onPressed: onNext,
-                style: FilledButton.styleFrom(
-                  backgroundColor: TPColors.primary500,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: TPText(nextText, style: TPTextStyles.h3SemiBold, color: TPColors.white),
-              ),
+              TPButton.primary(text: nextText, onPressed: onNext),
             ],
           ),
         ],

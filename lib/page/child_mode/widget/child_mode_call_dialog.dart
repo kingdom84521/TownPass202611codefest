@@ -133,7 +133,8 @@ class _EmergencyButton extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: color,
-        borderRadius: BorderRadius.circular(16),
+        // 與 TPButton 相同的圓角
+        borderRadius: BorderRadius.circular(10),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {

@@ -17,36 +17,28 @@ class ChildModeView extends StatelessWidget {
     _ChildModeEntry(
       title: '緊急求救',
       icon: Assets.svg.icon110.svg(),
-      backgroundColor: TPColors.red50,
-      borderColor: TPColors.red300,
+      // 唯一需要語意色的項目，用紅色標題讓小孩一眼找到
+      titleColor: TPColors.red600,
       onTap: ChildModeCallDialog.emergency,
     ),
     _ChildModeEntry(
       title: '1999',
       icon: Assets.svg.icon1999.svg(),
-      backgroundColor: TPColors.primary50,
-      borderColor: TPColors.primary300,
       onTap: () => ChildModeCallDialog.confirm(number: '1999'),
     ),
     _ChildModeEntry(
       title: '圖書借閱',
       icon: MyServiceItemId.library.item.icon,
-      backgroundColor: TPColors.secondary50,
-      borderColor: TPColors.secondary300,
       uri: MyServiceItemId.library.item.destinationUrl,
     ),
     _ChildModeEntry(
       title: '找地點',
       icon: MyServiceItemId.locationSearch.item.icon,
-      backgroundColor: TPColors.orange50,
-      borderColor: TPColors.orange300,
       uri: MyServiceItemId.locationSearch.item.destinationUrl,
     ),
     _ChildModeEntry(
       title: '愛遊動物園',
       icon: MyServiceItemId.zoo.item.icon,
-      backgroundColor: TPColors.grayscale50,
-      borderColor: TPColors.grayscale200,
       uri: MyServiceItemId.zoo.item.destinationUrl,
     ),
   ];
@@ -66,7 +58,7 @@ class ChildModeView extends StatelessWidget {
         if (!didPop) _exitChildMode();
       },
       child: Scaffold(
-        backgroundColor: TPColors.white,
+        backgroundColor: TPColors.grayscale50,
         appBar: TPAppBar(
           showLogo: true,
           title: '兒童模式',
@@ -92,17 +84,16 @@ class ChildModeView extends StatelessWidget {
         body: SafeArea(
           child: GridView.count(
             crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            padding: const EdgeInsets.all(20),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            padding: const EdgeInsets.all(16),
             children: [
               for (final entry in _entries)
                 TPServiceBlock(
                   icon: entry.icon,
                   title: entry.title,
                   iconSize: 56,
-                  backgroundColor: entry.backgroundColor,
-                  borderColor: entry.borderColor,
+                  titleColor: entry.titleColor,
                   onTap: entry.open,
                 ),
             ],
@@ -117,16 +108,14 @@ class _ChildModeEntry {
   const _ChildModeEntry({
     required this.title,
     required this.icon,
-    required this.backgroundColor,
-    required this.borderColor,
+    this.titleColor = TPColors.grayscale800,
     this.uri,
     this.onTap,
   }) : assert(uri != null || onTap != null);
 
   final String title;
   final Widget? icon;
-  final Color backgroundColor;
-  final Color borderColor;
+  final Color titleColor;
   final String? uri;
   final VoidCallback? onTap;
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/page/child_mode/widget/child_mode_pin_dialog.dart';
 import 'package:town_pass/page/home/tour/home_tour.dart';
 import 'package:town_pass/service/simple_mode_service.dart';
 import 'package:town_pass/service/translation_service.dart';
 import 'package:town_pass/service/user_persona_service.dart';
+import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_route.dart';
 import 'package:town_pass/util/tp_service_block.dart';
@@ -73,14 +75,13 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
         if (!didPop && _isChoosingLanguage) setState(() => _isChoosingLanguage = false);
       },
       child: Scaffold(
-        backgroundColor: TPColors.white,
-        appBar: AppBar(
-          backgroundColor: TPColors.white,
-          surfaceTintColor: Colors.transparent,
-          automaticallyImplyLeading: !_isFirstLaunch || _isChoosingLanguage,
-          leading: _isChoosingLanguage
-              ? BackButton(onPressed: () => setState(() => _isChoosingLanguage = false))
-              : null,
+        backgroundColor: TPColors.grayscale50,
+        appBar: TPAppBar(
+          leading: switch ((_isChoosingLanguage, _isFirstLaunch)) {
+            (true, _) => BackButton(onPressed: () => setState(() => _isChoosingLanguage = false)),
+            (false, false) => const BackButton(),
+            (false, true) => const SizedBox.shrink(),
+          },
         ),
         body: SafeArea(
           top: false,
@@ -98,44 +99,40 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
       key: const ValueKey('persona'),
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        const _Header(
-          emoji: '👋',
+        _Header(
+          icon: Assets.svg.logoS.svg(),
           title: '歡迎使用・Welcome',
           subtitle: 'ようこそ・Xin chào\n請選擇使用方式・Choose how to use',
         ),
         TPServiceBlockGrid(
           childAspectRatio: 0.85,
           children: [
-            _PersonaCard(
-              emoji: '🙂',
+            TPServiceBlock(
+              icon: Assets.svg.iconPerson.svg(),
               title: '一般使用',
-              subtitle: 'Standard',
-              backgroundColor: TPColors.primary50,
-              borderColor: TPColors.primary200,
+              description: 'Standard',
               onTap: () => _onPersonaTap(UserPersona.general),
             ),
-            _PersonaCard(
-              emoji: '🌏',
+            TPServiceBlock(
+              icon: Assets.svg.iconExploreTaipei.svg(),
               title: 'Foreign visitor',
-              subtitle: '外籍人士\n外国の方・Người nước ngoài',
-              backgroundColor: TPColors.secondary50,
-              borderColor: TPColors.secondary300,
+              description: '外籍人士\n外国の方・Người nước ngoài',
+              descriptionMaxLines: 3,
               onTap: () => _onPersonaTap(UserPersona.foreign),
             ),
-            _PersonaCard(
-              emoji: '👴',
+            TPServiceBlock(
+              // icon_more 的 viewBox 內留白較多，放大到與其他 24 規格圖示一致
+              icon: Transform.scale(scale: 2, child: Assets.svg.iconMore.svg()),
               title: '簡單好用',
-              subtitle: '大按鈕、好找服務\nEasy mode',
-              backgroundColor: TPColors.orange50,
-              borderColor: TPColors.orange300,
+              description: '大按鈕、好找服務\nEasy mode',
+              descriptionMaxLines: 3,
               onTap: () => _onPersonaTap(UserPersona.simple),
             ),
-            _PersonaCard(
-              emoji: '🧒',
+            TPServiceBlock(
+              icon: Assets.svg.iconFamilyCenter.svg(),
               title: '兒童',
-              subtitle: '家長設定\nKids (parent setup)',
-              backgroundColor: TPColors.red50,
-              borderColor: TPColors.red300,
+              description: '家長設定\nKids (parent setup)',
+              descriptionMaxLines: 3,
               onTap: () => _onPersonaTap(UserPersona.child),
             ),
           ],
@@ -154,18 +151,18 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
   }
 
   Widget _buildLanguageStep() {
-    const Map<TranslationLanguage, ({String emoji, String hint})> display = {
-      TranslationLanguage.english: (emoji: '🔤', hint: 'English'),
-      TranslationLanguage.japanese: (emoji: '🗾', hint: 'Japanese'),
-      TranslationLanguage.vietnamese: (emoji: '🪷', hint: 'Vietnamese'),
+    const Map<TranslationLanguage, String> hint = {
+      TranslationLanguage.english: 'English',
+      TranslationLanguage.japanese: 'Japanese',
+      TranslationLanguage.vietnamese: 'Vietnamese',
     };
 
     return ListView(
       key: const ValueKey('language'),
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        const _Header(
-          emoji: '🌏',
+        _Header(
+          icon: Assets.svg.iconExploreTaipei.svg(),
           title: 'Choose your language',
           subtitle: '言語を選択・Chọn ngôn ngữ\n請選擇語言',
         ),
@@ -175,9 +172,8 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
             children: [
               for (final TranslationLanguage language in TranslationLanguage.values) ...[
                 TPServiceListBlock(
-                  icon: _Emoji(display[language]!.emoji, size: 32),
                   title: language.label,
-                  description: display[language]!.hint,
+                  description: hint[language],
                   onTap: () => _onLanguageTap(language),
                 ),
                 const SizedBox(height: 12),
@@ -200,25 +196,25 @@ class _PersonaSelectViewState extends State<PersonaSelectView> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.emoji, required this.title, required this.subtitle});
+  const _Header({required this.icon, required this.title, required this.subtitle});
 
-  final String emoji;
+  final Widget icon;
   final String title;
   final String subtitle;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       child: Column(
         children: [
-          _Emoji(emoji, size: 56),
-          const SizedBox(height: 12),
+          ExcludeSemantics(child: SizedBox.square(dimension: 48, child: icon)),
+          const SizedBox(height: 16),
           Semantics(
             header: true,
             child: TPText(
               title,
-              style: TPTextStyles.h1SemiBold,
+              style: TPTextStyles.h2SemiBold,
               color: TPColors.grayscale900,
               textAlign: TextAlign.center,
             ),
@@ -226,60 +222,11 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 8),
           TPText(
             subtitle,
-            style: TPTextStyles.h3Regular,
+            style: TPTextStyles.bodyRegular,
             color: TPColors.grayscale600,
             textAlign: TextAlign.center,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PersonaCard extends StatelessWidget {
-  const _PersonaCard({
-    required this.emoji,
-    required this.title,
-    required this.subtitle,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.onTap,
-  });
-
-  final String emoji;
-  final String title;
-  final String subtitle;
-  final Color backgroundColor;
-  final Color borderColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return TPServiceBlock(
-      icon: _Emoji(emoji, size: 56),
-      iconSize: 64,
-      title: title,
-      description: subtitle,
-      descriptionMaxLines: 3,
-      backgroundColor: backgroundColor,
-      borderColor: borderColor,
-      onTap: onTap,
-    );
-  }
-}
-
-/// 以 emoji 作為插圖（demo 版，之後可換成設計插圖）。
-class _Emoji extends StatelessWidget {
-  const _Emoji(this.emoji, {required this.size});
-
-  final String emoji;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Center(
-        child: Text(emoji, style: TextStyle(fontSize: size, height: 1.1)),
       ),
     );
   }

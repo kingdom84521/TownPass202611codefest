@@ -42,7 +42,7 @@ class ServiceAssistantController extends GetxController {
   final RxList<ChatMessage> messages = <ChatMessage>[
     const ChatMessage(
       sender: ChatSender.assistant,
-      text: '你好！我是服務小幫手 👋\n告訴我你想做什麼，我幫你找對應的服務。',
+      text: '你好！我是服務小幫手\n告訴我你想做什麼，我幫你找對應的服務。',
       suggestions: defaultSuggestions,
     ),
   ].obs;
@@ -64,7 +64,7 @@ class ServiceAssistantController extends GetxController {
     }
 
     isThinking.value = true;
-    _reply(const ChatMessage(sender: ChatSender.assistant, text: '讓我想想… 🤔'));
+    _reply(const ChatMessage(sender: ChatSender.assistant, text: '讓我想想…'));
     ChatMessage answer;
     try {
       final AiMatchResult ai = await aiMatcher.match(query, ServiceSearch.catalog);
@@ -99,7 +99,7 @@ class ServiceAssistantController extends GetxController {
     }
     return ChatMessage(
       sender: ChatSender.assistant,
-      text: '${ai.reply.isNotEmpty ? ai.reply : '抱歉，我找不到相關的服務 🙇'}\n換個說法試試看，例如：',
+      text: '${ai.reply.isNotEmpty ? ai.reply : '抱歉，我找不到相關的服務'}\n換個說法試試看，例如：',
       suggestions: defaultSuggestions,
     );
   }
@@ -109,7 +109,7 @@ class ServiceAssistantController extends GetxController {
     if (results.isEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
-        text: '$prefix抱歉，我找不到相關的服務 🙇\n換個說法試試看，例如：',
+        text: '$prefix抱歉，我找不到相關的服務\n換個說法試試看，例如：',
         suggestions: defaultSuggestions,
       );
     }

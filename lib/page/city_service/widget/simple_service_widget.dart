@@ -35,7 +35,7 @@ class SimplePinnedServiceWidget extends GetView<PinnedServiceWidgetController> {
           TPServiceBlock(
             icon: Assets.svg.iconAdd.svg(),
             title: '新增服務',
-            backgroundColor: TPColors.grayscale50,
+            titleColor: TPColors.primary500,
             onTap: () => Get.toNamed(TPRoute.serviceEdit),
           ),
         ],
@@ -73,8 +73,6 @@ class SimpleOfficialServiceWidget extends StatelessWidget {
             icon: service.icon,
             title: service.title,
             description: service.subtitle,
-            backgroundColor: TPColors.primary50,
-            borderColor: TPColors.primary200,
             onTap: () => openServiceOrComingSoon(uri: service.uri, title: service.title),
           ),
       ],

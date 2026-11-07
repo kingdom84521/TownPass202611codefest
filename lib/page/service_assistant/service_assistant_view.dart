@@ -62,12 +62,14 @@ class _MessageItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: _isUser ? TPColors.primary500 : TPColors.white,
+              // 圓角與 TPButton／TPDialog 一致，靠近發話者的一角收小
               borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(_isUser ? 16 : 4),
-                bottomRight: Radius.circular(_isUser ? 4 : 16),
+                topLeft: const Radius.circular(10),
+                topRight: const Radius.circular(10),
+                bottomLeft: Radius.circular(_isUser ? 10 : 2),
+                bottomRight: Radius.circular(_isUser ? 2 : 10),
               ),
+              border: _isUser ? null : Border.all(color: TPColors.grayscale100),
             ),
             child: TPText(
               message.text,
@@ -98,8 +100,8 @@ class _MessageItem extends StatelessWidget {
                 ActionChip(
                   label: TPText(suggestion, style: TPTextStyles.bodyRegular, color: TPColors.primary600),
                   backgroundColor: TPColors.white,
-                  side: const BorderSide(color: TPColors.primary200),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  side: const BorderSide(color: TPColors.primary500),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   onPressed: () => onSuggestionTap(suggestion),
                 ),
             ],
@@ -119,7 +121,11 @@ class _InputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: TPColors.white,
+      // 與 TPBottomSheet 相同的白底與上緣陰影
+      decoration: const BoxDecoration(
+        color: TPColors.white,
+        boxShadow: [BoxShadow(color: Color(0x19000000), blurRadius: 6)],
+      ),
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       child: Row(
         children: [
@@ -133,11 +139,15 @@ class _InputBar extends StatelessWidget {
                 hintText: '想找什麼服務？例如：借書',
                 hintStyle: TPTextStyles.h3Regular.copyWith(color: TPColors.grayscale400),
                 filled: true,
-                fillColor: TPColors.grayscale50,
+                fillColor: TPColors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: TPColors.grayscale200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: TPColors.primary500, width: 2),
                 ),
               ),
             ),

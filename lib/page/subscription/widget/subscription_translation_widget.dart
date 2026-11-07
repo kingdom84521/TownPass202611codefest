@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:town_pass/bean/subscription.dart';
 import 'package:town_pass/service/translation_service.dart';
+import 'package:town_pass/util/tp_button.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_text.dart';
 
@@ -97,17 +98,10 @@ class _SubscriptionTranslationWidgetState extends State<SubscriptionTranslationW
         ),
         if (_state == _TranslationState.done) ...[
           const SizedBox(height: 24),
-          _showOriginal
-              ? _TranslateButton(
-                  text: '顯示翻譯 · Show translation',
-                  icon: Icons.translate,
-                  onPressed: () => setState(() => _showOriginal = false),
-                )
-              : _TranslateButton(
-                  text: '顯示原文 · Show original',
-                  icon: Icons.undo,
-                  onPressed: () => setState(() => _showOriginal = true),
-                ),
+          TPButton.secondary(
+            text: _showOriginal ? '顯示翻譯 · Show translation' : '顯示原文 · Show original',
+            onPressed: () => setState(() => _showOriginal = !_showOriginal),
+          ),
         ],
       ],
     );
@@ -165,7 +159,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -179,31 +173,3 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _TranslateButton extends StatelessWidget {
-  const _TranslateButton({
-    required this.text,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String text;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  static const Color color = TPColors.primary500;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18, color: color),
-      label: TPText(text, style: TPTextStyles.bodySemiBold, color: color),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: color,
-        side: const BorderSide(color: color),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      ),
-    );
-  }
-}
