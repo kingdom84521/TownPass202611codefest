@@ -310,6 +310,12 @@ abstract final class ServiceSearch {
     return score;
   }
 
+  /// 正規化：小寫、「臺」→「台」、去除空白與標點。RAG 檢索與關鍵字比對共用同一套規則。
+  static String normalize(String text) => _normalize(text);
+
+  /// 正規化後再移除問句裡不帶意義的詞（見 [fillerWords]）。
+  static String normalizeQuery(String query) => _stripFillers(_normalize(query));
+
   static String _normalize(String text) {
     return text.toLowerCase().replaceAll('臺', '台').replaceAll(RegExp(r'[\s\p{P}\p{S}]', unicode: true), '');
   }

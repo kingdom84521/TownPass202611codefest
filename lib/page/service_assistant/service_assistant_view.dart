@@ -90,6 +90,12 @@ class _MessageItem extends StatelessWidget {
             const SizedBox(height: 8),
           ],
         ],
+        // RAG 回答的依據：讓使用者知道推薦來自服務清冊，不是 AI 自己編的
+        if (message.groundingNote != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: TPText(message.groundingNote, style: TPTextStyles.caption, color: TPColors.grayscale500),
+          ),
         if (message.suggestions.isNotEmpty) ...[
           const SizedBox(height: 8),
           Wrap(

@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
-import 'package:town_pass/page/service_assistant/service_assistant_controller.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
+import 'package:town_pass/page/service_assistant/rag/service_inventory_corpus.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 
 /// 模擬 Gemini 的 HTTP 回應。刻意不帶 charset，確認程式一律用 UTF-8 解碼中文。
@@ -28,22 +29,6 @@ String _geminiBody(Map<String, Object> output, {String finishReason = 'STOP'}) =
 
 GeminiServiceMatcher _matcher(MockClientHandler handler, {Duration timeout = const Duration(seconds: 8)}) =>
     GeminiServiceMatcher(apiKey: 'test-key', model: 'test-model', client: MockClient(handler), timeout: timeout);
-
-/// 測試控制器用：不打網路，直接回傳指定結果或錯誤。
-class _FakeMatcher extends GeminiServiceMatcher {
-  _FakeMatcher({this.result, this.error}) : super(apiKey: 'fake');
-
-  final AiMatchResult? result;
-  final AiMatchException? error;
-  int calls = 0;
-
-  @override
-  Future<AiMatchResult> match(String query, List<ServiceSearchEntry> catalog) async {
-    calls++;
-    if (error != null) throw error!;
-    return result!;
-  }
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -160,51 +145,54 @@ void main() {
     });
   });
 
-  group('ServiceAssistantController with AI', () {
-    ServiceSearchEntry entry(String title) => catalog.firstWhere((e) => e.title == title);
+  group('GeminiServiceMatcher RAG calls', () {
+    late ServiceInventoryCorpus corpus;
+    setUpAll(() async => corpus = await ServiceInventoryCorpus.load());
 
-    test('confident keyword match does not call AI', () async {
-      final _FakeMatcher ai = _FakeMatcher(result: const AiMatchResult(entries: [], reply: ''));
-      final ServiceAssistantController controller = ServiceAssistantController(aiMatcher: ai);
+    List<RagHit> hitsFor(List<String> titles) => [
+          for (final String title in titles) RagHit(corpus.documents.firstWhere((d) => d.title == title), 10),
+        ];
 
-      await controller.send('圖書借閱');
+    test('generate sends only retrieved documents and limits the enum to them', () async {
+      late http.Request sent;
+      final GeminiServiceMatcher matcher = _matcher((request) async {
+        sent = request;
+        return _jsonResponse(_geminiBody({'matches': ['165 反詐騙專線'], 'reply': '可以撥 165 反詐騙專線'}), 200);
+      });
 
-      expect(ai.calls, 0);
-      expect(controller.messages.last.results.first.title, '圖書借閱');
+      final AiMatchResult result = await matcher.generate('我被詐騙了', hitsFor(['165 反詐騙專線', '警政服務']));
+
+      final Map<String, dynamic> body = jsonDecode(sent.body) as Map<String, dynamic>;
+      final List<dynamic> allowed =
+          body['generationConfig']['responseJsonSchema']['properties']['matches']['items']['enum'] as List<dynamic>;
+      expect(allowed, ['165 反詐騙專線', '警政服務'], reason: '只能從檢索到的文件挑選');
+      final String system = body['systemInstruction']['parts'][0]['text'] as String;
+      expect(system, contains('服務清冊'));
+      expect(system, contains('- 165 反詐騙專線｜反詐騙專線'));
+      expect(system, isNot(contains('圖書借閱')), reason: '沒檢索到的文件不送出');
+      expect(result.documents.map((d) => d.id), ['subpage:online_police:165']);
+      expect(result.entries.single.title, '165 反詐騙專線');
+      expect(result.reply, '可以撥 165 反詐騙專線');
     });
 
-    test('weak keyword match asks AI and shows its results', () async {
-      final _FakeMatcher ai = _FakeMatcher(result: AiMatchResult(entries: [entry('有話要說')], reply: '可以向市府陳情'));
-      final ServiceAssistantController controller = ServiceAssistantController(aiMatcher: ai);
-
-      await controller.send('隔壁工地一大早就在施工好吵');
-
-      expect(ai.calls, 1);
-      expect(controller.messages.last.text, '可以向市府陳情');
-      expect(controller.messages.last.results.map((e) => e.title), ['有話要說']);
-      expect(controller.messages.where((m) => m.text.contains('讓我想想')), isEmpty, reason: '等待訊息要移除');
-      expect(controller.isThinking.value, isFalse);
+    test('generate drops titles outside the retrieved context', () async {
+      final AiMatchResult result = await _matcher(
+        (_) async => _jsonResponse(_geminiBody({'matches': ['圖書借閱', '警政服務'], 'reply': ''}), 200),
+      ).generate('我被詐騙了', hitsFor(['165 反詐騙專線', '警政服務']));
+      expect(result.entries.map((e) => e.title), ['警政服務']);
     });
 
-    test('AI failure falls back to keyword results with a note', () async {
-      final _FakeMatcher ai = _FakeMatcher(error: const AiMatchException('AI 回應逾時', 'timeout'));
-      final ServiceAssistantController controller = ServiceAssistantController(aiMatcher: ai);
+    test('rewriteQuery returns deduplicated, trimmed keywords', () async {
+      late http.Request sent;
+      final List<String> keywords = await _matcher((request) async {
+        sent = request;
+        return _jsonResponse(_geminiBody({'keywords': [' 遺失 ', '報案', '遺失', '', '錢包']}), 200);
+      }).rewriteQuery('my wallet was stolen');
 
-      await controller.send('樓上很吵');
-
-      expect(controller.messages.last.text, contains('AI 回應逾時'));
-      expect(controller.messages.last.results.first.title, '有話要說');
-      expect(controller.isThinking.value, isFalse);
-    });
-
-    test('works without AI key (keyword only)', () async {
-      final ServiceAssistantController controller = ServiceAssistantController(
-        aiMatcher: GeminiServiceMatcher(apiKey: '', client: MockClient((_) async => http.Response('', 500))),
-      );
-
-      await controller.send('樓上很吵');
-
-      expect(controller.messages.last.results.first.title, '有話要說');
+      expect(keywords, ['遺失', '報案', '錢包']);
+      final Map<String, dynamic> body = jsonDecode(sent.body) as Map<String, dynamic>;
+      expect(body['contents'][0]['parts'][0]['text'], 'my wallet was stolen');
+      expect(body['generationConfig']['responseJsonSchema']['required'], ['keywords']);
     });
   });
 }

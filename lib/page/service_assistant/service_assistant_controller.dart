@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/page/service_assistant/gemini_service_matcher.dart';
+import 'package:town_pass/page/service_assistant/rag/rag_document.dart';
+import 'package:town_pass/page/service_assistant/rag/service_rag.dart';
 import 'package:town_pass/page/service_assistant/service_search.dart';
 
 enum ChatSender { user, assistant }
@@ -11,6 +13,7 @@ class ChatMessage {
     required this.text,
     this.results = const [],
     this.suggestions = const [],
+    this.groundingNote,
   });
 
   final ChatSender sender;
@@ -21,17 +24,29 @@ class ChatMessage {
 
   /// 建議的問法，點了直接送出。
   final List<String> suggestions;
+
+  /// RAG 回答的依據說明，例如「依據服務清冊 6 筆相關資料」；非 RAG 回答為 null。
+  final String? groundingNote;
 }
 
 class ServiceAssistantController extends GetxController {
-  ServiceAssistantController({GeminiServiceMatcher? aiMatcher}) : aiMatcher = aiMatcher ?? GeminiServiceMatcher();
+  /// [generator] 預設為 Gemini；[rag] 可直接注入（測試用），否則第一次需要時從辭庫載入。
+  ServiceAssistantController({RagGenerator? generator, ServiceRag? rag})
+      : generator = generator ?? rag?.generator ?? GeminiServiceMatcher(),
+        _ragFuture = rag == null ? null : Future.value(rag);
 
   static const List<String> defaultSuggestions = ['我想借書', '附近有什麼', '要看醫生', '繳水費', '我要報案'];
 
   /// 關鍵字比對達到這個分數（約等於名稱直接命中）就直接回覆，不呼叫 AI。
   static const int confidentScore = 20;
 
-  final GeminiServiceMatcher aiMatcher;
+  /// AI 判斷沒有合適服務時，列出幾筆檢索結果供參考。
+  static const int maxRelatedHits = 3;
+
+  final RagGenerator generator;
+  Future<ServiceRag>? _ragFuture;
+
+  Future<ServiceRag> get _rag => _ragFuture ??= ServiceRag.load(generator: generator);
 
   final TextEditingController inputController = TextEditingController();
   final ScrollController scrollController = ScrollController();
@@ -58,7 +73,7 @@ class ServiceAssistantController extends GetxController {
     final List<ServiceSearchEntry> keywordResults = ServiceSearch.search(query);
     final bool confident = ServiceSearch.topScore(query) >= confidentScore;
 
-    if (confident || !aiMatcher.isEnabled) {
+    if (confident || !generator.isEnabled) {
       _reply(_keywordReply(keywordResults));
       return;
     }
@@ -66,12 +81,23 @@ class ServiceAssistantController extends GetxController {
     isThinking.value = true;
     _reply(const ChatMessage(sender: ChatSender.assistant, text: '讓我想想…'));
     ChatMessage answer;
+    RagRetrieval? retrieval;
     try {
-      final AiMatchResult ai = await aiMatcher.match(query, ServiceSearch.catalog);
-      answer = _aiReply(ai, keywordResults);
+      final ServiceRag rag = await _rag;
+      retrieval = await rag.retrieve(query);
+      final AiMatchResult ai = await rag.generate(retrieval);
+      answer = _ragReply(ai, retrieval, keywordResults);
     } on AiMatchException catch (error) {
-      // 詳細原因已由 GeminiServiceMatcher 寫進 log；這裡告訴使用者並退回關鍵字結果
-      answer = _keywordReply(keywordResults, note: '（${error.userMessage}，以下是關鍵字比對的結果）');
+      // 詳細原因已由 GeminiServiceMatcher 寫進 log；這裡告訴使用者並退回關鍵字（或檢索）結果
+      answer = _keywordReply(
+        keywordResults.isNotEmpty ? keywordResults : _relatedEntries(retrieval),
+        note: '（${error.userMessage}，以下是關鍵字比對的結果）',
+      );
+    } catch (error) {
+      // 辭庫載入失敗等非預期錯誤：記錄後退回關鍵字比對，小幫手仍可用
+      debugPrint('[服務小幫手/RAG] 失敗：$error');
+      _ragFuture = null; // 下次再試著載入
+      answer = _keywordReply(keywordResults, note: '（AI 小幫手暫時無法使用，以下是關鍵字比對的結果）');
     } finally {
       isThinking.value = false;
     }
@@ -81,20 +107,33 @@ class ServiceAssistantController extends GetxController {
     _reply(answer);
   }
 
-  ChatMessage _aiReply(AiMatchResult ai, List<ServiceSearchEntry> keywordResults) {
+  List<ServiceSearchEntry> _relatedEntries(RagRetrieval? retrieval) =>
+      (retrieval?.hits ?? const <RagHit>[]).take(maxRelatedHits).map((hit) => hit.document.action).toList();
+
+  String _groundingNote(RagRetrieval retrieval) {
+    final String rewritten =
+        retrieval.wasRewritten ? '（以「${retrieval.rewrittenKeywords.join('、')}」檢索）' : '';
+    return '依據服務清冊 ${retrieval.hits.length} 筆相關資料$rewritten';
+  }
+
+  ChatMessage _ragReply(AiMatchResult ai, RagRetrieval retrieval, List<ServiceSearchEntry> keywordResults) {
     if (ai.entries.isNotEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
         text: ai.reply.isNotEmpty ? ai.reply : '我找到這些服務，點一下就能使用：',
         results: ai.entries,
+        groundingNote: _groundingNote(retrieval),
       );
     }
-    // AI 判斷沒有合適服務；若關鍵字有勉強對到的，仍列出讓使用者參考
-    if (keywordResults.isNotEmpty) {
+    // AI 判斷參考資料裡沒有合適服務；檢索或關鍵字有勉強對到的，仍列出讓使用者參考
+    final List<ServiceSearchEntry> related =
+        keywordResults.isNotEmpty ? keywordResults : _relatedEntries(retrieval);
+    if (related.isNotEmpty) {
       return ChatMessage(
         sender: ChatSender.assistant,
         text: '${ai.reply.isNotEmpty ? ai.reply : '我不太確定你要的是哪個服務'}\n你可以看看這些是否相關：',
-        results: keywordResults,
+        results: related,
+        groundingNote: retrieval.hits.isEmpty ? null : _groundingNote(retrieval),
       );
     }
     return ChatMessage(

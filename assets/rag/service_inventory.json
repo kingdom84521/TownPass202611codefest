@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "schemaVersion": 1,
+    "title": "TownPass「服務」頁籤服務清冊",
+    "repo": "https://github.com/taipei-doit/TownPass",
+    "sourceCommit": "e65b586",
+    "generatedAt": "2026-11-07",
+    "generatedBy": "Claude Code（人工核對原始碼＋Android 模擬器實測）",
+    "scope": "底部頁籤「服務」(CityServiceView) 內所有可點擊入口；首頁/優惠/帳務頁籤不在範圍內",
+    "dataSourceConclusion": "清單全部寫死在 App 原始碼（Dart），沒有 API、沒有資料庫；點擊後的內容是 WebView 開外部網頁或 App 內建頁",
+    "lineNumbersNote": "source.line 對應 sourceCommit 版本；程式更新後行號可能位移，請以檔案＋關鍵字重新定位",
+    "counts": {
+      "catalogServices": 21,
+      "clickableEntries": 33,
+      "catalogServicesWithUrl": 7,
+      "catalogServicesEmptyUrl": 14,
+      "entriesByStatus": { "active": 14, "inactive": 19 },
+      "entriesByDestinationType": { "webview": 13, "local_route": 1, "none_empty_url": 15, "none_todo": 4 }
+    }
+  },
+
+  "routing": {
+    "function": "TPRoute.openUri(uri, forceTitle)",
+    "source": { "file": "lib/util/tp_route.dart", "line": 190 },
+    "rules": [
+      { "match": "uri 為空字串", "result": "不做任何事（無提示、無 log）", "destinationType": "none_empty_url" },
+      { "match": "scheme = local", "result": "Get.toNamed(uri.host)，開 App 內建頁", "example": "local://online_police", "destinationType": "local_route" },
+      { "match": "其他（https 等）", "result": "Get.toNamed('/web_view') 用 App 內 WebView 開啟，forceTitle 可固定標題", "destinationType": "webview" }
+    ],
+    "destinationTypes": {
+      "webview": "App 內 WebView 開外部網址",
+      "local_route": "App 內建原生頁面",
+      "tel": "呼叫手機撥號",
+      "none_empty_url": "網址空白，點擊無反應",
+      "none_todo": "onTap 只有 // TODO 註解，點擊無反應"
+    }
+  },
+
+  "tabs": [
+    { "index": 0, "label": "服務", "view": "lib/page/city_service/city_service_view.dart", "inScope": true },
+    { "index": 1, "label": "首頁", "view": "lib/page/home/home_view.dart", "inScope": false, "isDefault": true },
+    { "index": 2, "label": "優惠", "view": "lib/page/perk/perk_view.dart", "inScope": false },
+    { "index": 3, "label": "帳務", "view": "lib/page/bill/bill_view.dart", "inScope": false }
+  ],
+  "tabsSource": { "file": "lib/util/tp_bottom_navigation_factory.dart", "line": 10 },
+
+  "sections": [
+    {
+      "id": "A",
+      "name": "我的服務（置頂）",
+      "files": ["lib/page/city_service/widget/pinned_service_widget.dart", "lib/page/city_service/widget/pinned_service_widget_controller.dart"],
+      "dataSource": "pinned_service_widget_controller.dart:6 寫死 3 個 MyServiceItemId；上限 12 個；使用者調整只存在記憶體，App 重開即還原"
+    },
+    {
+      "id": "A_EDIT",
+      "name": "服務編輯頁（「更多」/「新增」進入，路由 /service_edit）",
+      "files": ["lib/page/city_service_edit/city_service_edit_view.dart", "lib/page/city_service_edit/city_service_edit_view_controller.dart"],
+      "dataSource": "lib/page/city_service/model/my_service_model.dart 的 MyServiceItemId.values（21 項，依 category 分組）"
+    },
+    {
+      "id": "B",
+      "name": "官方服務卡片（6 格）",
+      "files": ["lib/page/city_service/widget/official_service_card/"],
+      "dataSource": "各卡片檔案內寫死文字與網址，不引用 MyServiceItemId"
+    },
+    {
+      "id": "C",
+      "name": "熱門",
+      "files": ["lib/page/city_service/widget/trending_service_widget.dart", "lib/page/city_service/model/trending_service_model.dart"],
+      "dataSource": "trending_service_model.dart 的 serviceList 寫死 3 項，不引用 MyServiceItemId"
+    }
+  ],
+
+  "categories": [
+    { "code": "cityService", "name": "市政服務", "sort": 1 },
+    { "code": "healthCare", "name": "防疫醫療", "sort": 2 },
+    { "code": "cityLife", "name": "城市生活", "sort": 3 },
+    { "code": "explore", "name": "探索臺北", "sort": 4 },
+    { "code": "other", "name": "其他服務", "sort": 5, "note": "有定義但沒有服務使用" }
+  ],
+  "categoriesSource": { "file": "lib/page/city_service/model/my_service_model.dart", "symbol": "MyServiceCategory / MyServiceCategoryExt" },
+
+  "services": [
+    { "code": "dedicatedLine", "sort": 1, "title": "1999", "description": "播打網路語音通話", "category": "cityService", "icon": { "dart": "Assets.svg.icon1999phoneS", "asset": "assets/svg/icon_1999phone_s.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 38 } },
+    { "code": "districtOffice", "sort": 2, "title": "申辦服務", "description": "線上申辦市政府服務個項目（市民）", "category": "cityService", "icon": { "dart": "Assets.svg.iconDistrictOffice", "asset": "assets/svg/icon_district office.svg" }, "url": "https://taipei-pass-service.vercel.app/", "forceWebViewTitle": null, "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 45 } },
+    { "code": "reportIssue", "sort": 3, "title": "有話要說", "description": "陳情系統", "category": "cityService", "icon": { "dart": "Assets.svg.iconTalk", "asset": "assets/svg/icon_talk.svg" }, "url": "https://taipei-pass-service.vercel.app/citizen-report/", "forceWebViewTitle": null, "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 52 } },
+    { "code": "reservation", "sort": 4, "title": "臨櫃叫號", "description": "臨櫃服務查看叫號、預約", "category": "cityService", "icon": { "dart": "Assets.svg.iconReservation", "asset": "assets/svg/icon_reservation.svg" }, "url": "https://taipei-pass-service.vercel.app/counter-calling/", "forceWebViewTitle": null, "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 59 } },
+    { "code": "iVoting", "sort": 5, "title": "網路投票", "description": "收集民意，促進民眾參與市政服務", "category": "cityService", "icon": { "dart": "Assets.svg.iconVoteBallot", "asset": "assets/svg/icon_vote_ballot.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 66 } },
+    { "code": "dashboard", "sort": 6, "title": "市政資訊儀表板", "description": "提供臺北市生活的重要數據", "category": "cityService", "icon": { "dart": "Assets.svg.iconDashboardPerson", "asset": "assets/svg/icon_dashboard_person.svg" }, "url": "https://dashboard.gov.taipei/", "forceWebViewTitle": "市政資訊儀表板", "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 73 } },
+    { "code": "survey", "sort": 7, "title": "意見調查", "description": "了解民眾與台北市互動體驗調查", "category": "cityService", "icon": { "dart": "Assets.svg.iconSurveyFeedback", "asset": "assets/svg/icon_survey_feedback.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 81 } },
+    { "code": "police", "sort": 8, "title": "警政服務", "description": "提供線上、語音報案", "category": "cityService", "icon": { "dart": "Assets.svg.iconPolice", "asset": "assets/svg/icon_police.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "note": "清單內網址空白，但卡片 B 的「警政報案」用 local://online_police 可開啟同性質頁面", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 88 } },
+    { "code": "neighborhood", "sort": 9, "title": "里辦服務", "description": "提供居民更即時在地區里服務", "category": "cityService", "icon": { "dart": "Assets.svg.iconCommunityService", "asset": "assets/svg/icon_community_service.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 95 } },
+    { "code": "disasterReport", "sort": 10, "title": "災情通報", "description": "立即通報發生災情地點", "category": "cityService", "icon": { "dart": "Assets.svg.iconEarthquake", "asset": "assets/svg/icon_earthquake.svg" }, "url": "https://taipei-pass-service.vercel.app/disaster-report", "forceWebViewTitle": null, "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 102 } },
+    { "code": "vaccineAppointment", "sort": 11, "title": "疫苗預約", "description": "預約Covid-19、流感疫苗施打", "category": "healthCare", "icon": { "dart": "Assets.svg.iconVaccineAppointment", "asset": "assets/svg/icon_vaccine_appointment.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 109 } },
+    { "code": "medicalAppointment", "sort": 12, "title": "聯醫掛號", "description": "北市聯合醫院各院區線上掛號", "category": "healthCare", "icon": { "dart": "Assets.svg.iconRegistration", "asset": "assets/svg/icon_registration.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 116 } },
+    { "code": "cityRadio", "sort": 13, "title": "台北電台", "description": "線上即時收聽-臺北廣播電台", "category": "cityLife", "icon": { "dart": "Assets.svg.iconTaipeiRadio", "asset": "assets/svg/icon_taipei_radio.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 123 } },
+    { "code": "familyCenter", "sort": 14, "title": "親子館", "description": "線上預約各區親子館活動報名", "category": "cityLife", "icon": { "dart": "Assets.svg.iconFamilyCenter", "asset": "assets/svg/icon_family_center.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 130 } },
+    { "code": "greenMap", "sort": 15, "title": "簡單森呼吸", "description": "提供綠化地圖資訊", "category": "cityLife", "icon": { "dart": "Assets.svg.iconForest", "asset": "assets/svg/icon_forest.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 137 } },
+    { "code": "petFriendlyMap", "sort": 16, "title": "寵物安心遛", "description": "提供寵物友善地圖資訊", "category": "cityLife", "icon": { "dart": "Assets.svg.iconPet", "asset": "assets/svg/icon_pet.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 144 } },
+    { "code": "waterMeter", "sort": 17, "title": "用水服務", "description": "繳交水費、查詢或自報用水度數", "category": "cityLife", "icon": { "dart": "Assets.svg.iconWaterMeter", "asset": "assets/svg/icon_water_meter.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 151 } },
+    { "code": "essentialGoods", "sort": 18, "title": "民生物資", "description": "提供北市民生物資交易量與金額", "category": "cityLife", "icon": { "dart": "Assets.svg.iconEssentialGoods", "asset": "assets/svg/icon_essential_goods.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 158 } },
+    { "code": "library", "sort": 19, "title": "圖書借閱", "description": "市立圖書館借閱服務", "category": "cityLife", "icon": { "dart": "Assets.svg.iconLibraryBorrow", "asset": "assets/svg/icon_library_borrow.svg" }, "url": "https://taipei-pass-service.vercel.app/library-service/", "forceWebViewTitle": null, "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 165 } },
+    { "code": "locationSearch", "sort": 20, "title": "找地點", "description": "提供各區日常服務地圖查找", "category": "explore", "icon": { "dart": "Assets.svg.iconLocationSearch24", "asset": "assets/svg/icon_location_search_24.svg" }, "url": "https://taipei-pass-service.vercel.app/surrounding-service/", "forceWebViewTitle": null, "status": "active", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 172 } },
+    { "code": "zoo", "sort": 21, "title": "愛遊動物園", "description": "動物園區資訊導覽、線上地圖", "category": "explore", "icon": { "dart": "Assets.svg.iconZoo24", "asset": "assets/svg/icon_zoo_24.svg" }, "url": "", "forceWebViewTitle": null, "status": "inactive", "source": { "file": "lib/page/city_service/model/my_service_model.dart", "line": 179 } }
+  ],
+
+  "entries": [
+    { "id": "A-1", "section": "A", "label": "找地點", "serviceCode": "locationSearch", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/surrounding-service/", "status": "active", "source": { "file": "lib/page/city_service/widget/pinned_service_widget_controller.dart", "line": 7 } },
+    { "id": "A-2", "section": "A", "label": "申辦服務", "serviceCode": "districtOffice", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/", "status": "active", "source": { "file": "lib/page/city_service/widget/pinned_service_widget_controller.dart", "line": 8 } },
+    { "id": "A-3", "section": "A", "label": "市政資訊儀表板", "serviceCode": "dashboard", "destinationType": "webview", "url": "https://dashboard.gov.taipei/", "forceWebViewTitle": "市政資訊儀表板", "status": "active", "source": { "file": "lib/page/city_service/widget/pinned_service_widget_controller.dart", "line": 9 } },
+
+    { "id": "A_EDIT-1", "section": "A_EDIT", "label": "1999", "serviceCode": "dedicatedLine", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-2", "section": "A_EDIT", "label": "申辦服務", "serviceCode": "districtOffice", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/", "status": "active" },
+    { "id": "A_EDIT-3", "section": "A_EDIT", "label": "有話要說", "serviceCode": "reportIssue", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/citizen-report/", "status": "active" },
+    { "id": "A_EDIT-4", "section": "A_EDIT", "label": "臨櫃叫號", "serviceCode": "reservation", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/counter-calling/", "status": "active" },
+    { "id": "A_EDIT-5", "section": "A_EDIT", "label": "網路投票", "serviceCode": "iVoting", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-6", "section": "A_EDIT", "label": "市政資訊儀表板", "serviceCode": "dashboard", "destinationType": "webview", "url": "https://dashboard.gov.taipei/", "status": "active", "note": "編輯頁點擊時未傳 forceWebViewTitle（city_service_edit_view.dart 只傳 uri）" },
+    { "id": "A_EDIT-7", "section": "A_EDIT", "label": "意見調查", "serviceCode": "survey", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-8", "section": "A_EDIT", "label": "警政服務", "serviceCode": "police", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-9", "section": "A_EDIT", "label": "里辦服務", "serviceCode": "neighborhood", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-10", "section": "A_EDIT", "label": "災情通報", "serviceCode": "disasterReport", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/disaster-report", "status": "active" },
+    { "id": "A_EDIT-11", "section": "A_EDIT", "label": "疫苗預約", "serviceCode": "vaccineAppointment", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-12", "section": "A_EDIT", "label": "聯醫掛號", "serviceCode": "medicalAppointment", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-13", "section": "A_EDIT", "label": "台北電台", "serviceCode": "cityRadio", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-14", "section": "A_EDIT", "label": "親子館", "serviceCode": "familyCenter", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-15", "section": "A_EDIT", "label": "簡單森呼吸", "serviceCode": "greenMap", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-16", "section": "A_EDIT", "label": "寵物安心遛", "serviceCode": "petFriendlyMap", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-17", "section": "A_EDIT", "label": "用水服務", "serviceCode": "waterMeter", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-18", "section": "A_EDIT", "label": "民生物資", "serviceCode": "essentialGoods", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+    { "id": "A_EDIT-19", "section": "A_EDIT", "label": "圖書借閱", "serviceCode": "library", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/library-service/", "status": "active" },
+    { "id": "A_EDIT-20", "section": "A_EDIT", "label": "找地點", "serviceCode": "locationSearch", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/surrounding-service/", "status": "active" },
+    { "id": "A_EDIT-21", "section": "A_EDIT", "label": "愛遊動物園", "serviceCode": "zoo", "destinationType": "none_empty_url", "url": "", "status": "inactive" },
+
+    { "id": "B-1", "section": "B", "position": "左上大卡", "label": "市政服務", "subLabel": "Service", "serviceCode": null, "destinationType": "none_todo", "url": null, "status": "inactive", "source": { "file": "lib/page/city_service/widget/official_service_card/official_service_card_top_left.dart", "line": 18 } },
+    { "id": "B-2", "section": "B", "position": "右上-上", "label": "有話要說", "subLabel": "1999", "serviceCode": "reportIssue", "serviceCodeMatch": "inferred_by_url", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/citizen-report/", "status": "active", "source": { "file": "lib/page/city_service/widget/official_service_card/official_service_card_top_right.dart", "line": 38 } },
+    { "id": "B-3", "section": "B", "position": "右上-下", "label": "警政報案", "subLabel": "Police", "serviceCode": "police", "serviceCodeMatch": "inferred_by_meaning", "destinationType": "local_route", "url": "local://online_police", "route": "/online_police", "subpage": "online_police", "status": "active", "verified": "2026-11-07 Android 模擬器實測可開啟", "source": { "file": "lib/page/city_service/widget/official_service_card/official_service_card_top_right.dart", "line": 82 } },
+    { "id": "B-4", "section": "B", "position": "左下-上", "label": "防疫醫療", "subLabel": "Health", "serviceCode": null, "destinationType": "none_todo", "url": null, "status": "inactive", "source": { "file": "lib/page/city_service/widget/official_service_card/official_service_card_bottom_left.dart", "line": 38 } },
+    { "id": "B-5", "section": "B", "position": "左下-下", "label": "市政APP", "subLabel": "More", "serviceCode": null, "destinationType": "none_todo", "url": null, "status": "inactive", "source": { "file": "lib/page/city_service/widget/official_service_card/official_service_card_bottom_left.dart", "line": 82 } },
+    { "id": "B-6", "section": "B", "position": "右下大卡", "label": "城市生活", "subLabel": "City Life", "serviceCode": null, "destinationType": "none_todo", "url": null, "status": "inactive", "source": { "file": "lib/page/city_service/widget/official_service_card/official_service_card_bottom_right.dart", "line": 14 } },
+
+    { "id": "C-1", "section": "C", "label": "找地點", "serviceCode": "locationSearch", "serviceCodeMatch": "inferred_by_url", "icon": { "dart": "Assets.svg.iconLocationSearch", "asset": "assets/svg/icon_location_search.svg" }, "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/surrounding-service/", "status": "active", "source": { "file": "lib/page/city_service/model/trending_service_model.dart", "line": 7 } },
+    { "id": "C-2", "section": "C", "label": "市政資訊儀表板", "serviceCode": "dashboard", "serviceCodeMatch": "inferred_by_url", "icon": { "dart": "Assets.svg.iconDashboardReports", "asset": "assets/svg/icon_dashboard_reports.svg" }, "destinationType": "webview", "url": "https://dashboard.gov.taipei/", "forceWebViewTitle": "市政資訊儀表板", "status": "active", "source": { "file": "lib/page/city_service/model/trending_service_model.dart", "line": 12 } },
+    { "id": "C-3", "section": "C", "label": "施工資訊", "serviceCode": null, "icon": { "dart": "Assets.svg.iconLocationSearch", "asset": "assets/svg/icon_location_search.svg", "note": "與找地點共用圖示" }, "destinationType": "none_empty_url", "url": "", "status": "inactive", "source": { "file": "lib/page/city_service/model/trending_service_model.dart", "line": 18 } }
+  ],
+
+  "subpages": [
+    {
+      "id": "online_police",
+      "title": "警政報案系統",
+      "route": "/online_police",
+      "file": "lib/page/online_police/online_police_view.dart",
+      "reachedFrom": ["B-3"],
+      "items": [
+        { "group": "網路報案", "label": "網路報案", "description": "性質如同110，為報案管道之一種，填寫相關資料，進行報案", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/police-report", "line": 27 },
+        { "group": "網路報案", "label": "案件查詢", "description": "案件進度查詢", "destinationType": "webview", "url": "https://taipei-pass-service.vercel.app/police-report/record", "line": 48 },
+        { "group": "語音報案", "label": "110", "description": "緊急報案", "destinationType": "tel", "url": "tel://110", "line": 76 },
+        { "group": "語音報案", "label": "119", "description": "火災通報", "destinationType": "tel", "url": "tel://119", "line": 90 },
+        { "group": "語音報案", "label": "165", "description": "反詐騙專線", "destinationType": "tel", "url": "tel://165", "line": 110 },
+        { "group": "語音報案", "label": "113", "description": "婦幼保護申訴專線", "destinationType": "tel", "url": "tel://113", "line": 124 }
+      ]
+    }
+  ],
+
+  "issues": [
+    { "id": "I-1", "type": "duplication", "summary": "同一服務在多處各自寫死，改網址需同步多個檔案", "detail": { "locationSearch": ["A-1", "A_EDIT-20", "C-1"], "dashboard": ["A-3", "A_EDIT-6", "C-2"], "reportIssue": ["A_EDIT-3", "B-2"], "districtOffice": ["A-2", "A_EDIT-2"] } },
+    { "id": "I-2", "type": "inconsistency", "summary": "清單 police（警政服務）網址空白，卡片 B-3（警政報案）卻可開 local://online_police，兩者未共用資料" },
+    { "id": "I-3", "type": "ux_silent_failure", "summary": "19 個入口點擊無反應、無提示、無 log（openUri 空字串直接 return；TODO 卡片 onTap 為空）", "entries": ["A_EDIT-1", "A_EDIT-5", "A_EDIT-7", "A_EDIT-8", "A_EDIT-9", "A_EDIT-11", "A_EDIT-12", "A_EDIT-13", "A_EDIT-14", "A_EDIT-15", "A_EDIT-16", "A_EDIT-17", "A_EDIT-18", "A_EDIT-21", "B-1", "B-4", "B-5", "B-6", "C-3"] },
+    { "id": "I-4", "type": "not_persisted", "summary": "使用者自訂置頂（A）只存在記憶體，App 重開還原為預設 3 個（依程式碼判斷，未實機驗證）" },
+    { "id": "I-5", "type": "placeholder_backend", "summary": "網頁目的地為市府範例站 taipei-pass-service.vercel.app，正式使用需換成真實服務網址" },
+    { "id": "I-6", "type": "asset_naming", "summary": "圖示檔名含空白：assets/svg/icon_district office.svg" }
+  ]
+}
